@@ -33,15 +33,20 @@ source .venv/bin/activate
 
 ## Getting the data
 
-On the terminal, run this
+You need google-cloud-sdk. Follow [these instructions](https://docs.cloud.google.com/sdk/docs/install-sdk).
+
+Or, if you have Homebrew installed, run this:
 
 ```bash
 # Install the Google Cloud SDK (if they haven't)
 brew install --cask google-cloud-sdk  # macOS
+```
 
-# Log in to Google Cloud locally 
-# Here, you will sign into a Google Cloud account with your Berkeley email
+Once You have google-cloud-sdk, then you need login **with your Berkeley email**:
+
+```bash
 gcloud auth application-default login
+```
 
 # Install the python lib
 uv sync
