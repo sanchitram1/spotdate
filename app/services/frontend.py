@@ -248,51 +248,48 @@ def get_dashboard_page():
                 color: #ffffff;
                 border: none;
                 padding: 8px 16px;
-                font-size: 14px;
                 border-radius: 20px;
                 cursor: pointer;
-                transition: background-color 0.3s ease;
+                transition: all 0.3s ease;
+                font-size: 14px;
             }
 
             .logout-btn:hover {
-                background-color: #404040;
+                background-color: #1db954;
             }
 
             .container {
-                max-width: 1000px;
+                max-width: 1200px;
                 margin: 0 auto;
                 padding: 40px 20px;
             }
 
             .fetch-section {
-                background: rgba(29, 185, 84, 0.1);
-                border: 1px solid #1db954;
+                background: rgba(30, 30, 30, 0.8);
+                border: 1px solid #282828;
                 border-radius: 8px;
-                padding: 30px;
-                text-align: center;
-                margin-bottom: 40px;
+                padding: 24px;
+                margin-bottom: 24px;
             }
 
             .fetch-section h2 {
                 font-size: 20px;
-                margin-bottom: 10px;
+                margin-bottom: 8px;
             }
 
             .fetch-section p {
                 color: #b3b3b3;
-                margin-bottom: 20px;
-                font-size: 14px;
+                margin-bottom: 16px;
             }
 
             .fetch-btn {
                 background-color: #1db954;
                 color: #ffffff;
                 border: none;
-                padding: 12px 28px;
-                font-size: 16px;
-                font-weight: 600;
+                padding: 10px 24px;
                 border-radius: 24px;
                 cursor: pointer;
+                font-weight: 600;
                 transition: all 0.3s ease;
             }
 
@@ -302,24 +299,42 @@ def get_dashboard_page():
             }
 
             .fetch-btn:disabled {
-                background-color: #666666;
+                opacity: 0.6;
                 cursor: not-allowed;
             }
 
-            .loading {
+            .error {
+                background-color: #ff4444;
+                color: #ffffff;
+                padding: 16px;
+                border-radius: 8px;
+                margin: 20px 0;
                 display: none;
+            }
+
+            .success {
+                background-color: #1db954;
+                color: #ffffff;
+                padding: 16px;
+                border-radius: 8px;
+                margin: 20px 0;
+                display: none;
+            }
+
+            .loading {
                 text-align: center;
-                padding: 20px;
+                padding: 40px;
+                display: none;
             }
 
             .spinner {
                 border: 4px solid #333333;
                 border-top: 4px solid #1db954;
                 border-radius: 50%;
-                width: 30px;
-                height: 30px;
+                width: 40px;
+                height: 40px;
                 animation: spin 1s linear infinite;
-                margin: 0 auto 15px;
+                margin: 0 auto 20px;
             }
 
             @keyframes spin {
@@ -327,95 +342,88 @@ def get_dashboard_page():
                 100% { transform: rotate(360deg); }
             }
 
-            .error {
-                background-color: #d32f2f;
-                border: 1px solid #ff6b6b;
-                color: #ffffff;
-                padding: 15px;
-                border-radius: 8px;
-                margin-bottom: 20px;
-                display: none;
-            }
-
-            .success {
-                background-color: #1db954;
-                border: 1px solid #1ed760;
-                color: #ffffff;
-                padding: 15px;
-                border-radius: 8px;
-                margin-bottom: 20px;
-                display: none;
-            }
-
             .results {
+                background: rgba(30, 30, 30, 0.8);
+                border: 1px solid #282828;
+                border-radius: 8px;
+                padding: 24px;
+                margin-top: 24px;
                 display: none;
             }
 
             .results h3 {
-                font-size: 18px;
+                font-size: 20px;
                 margin-bottom: 20px;
-                color: #1db954;
             }
 
             .artist-grid {
                 display: grid;
-                grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-                gap: 20px;
+                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+                gap: 16px;
+                margin-bottom: 20px;
             }
 
             .artist-card {
-                background: rgba(30, 30, 30, 0.6);
-                border: 1px solid #282828;
+                background: rgba(40, 40, 40, 0.6);
                 border-radius: 8px;
-                padding: 15px;
+                padding: 12px;
                 text-align: center;
+                cursor: pointer;
                 transition: all 0.3s ease;
+                border: 1px solid #282828;
             }
 
             .artist-card:hover {
+                background: rgba(50, 50, 50, 0.8);
                 border-color: #1db954;
-                transform: translateY(-4px);
-                background: rgba(29, 185, 84, 0.1);
             }
 
             .artist-image {
                 width: 100%;
                 aspect-ratio: 1;
                 border-radius: 8px;
-                object-fit: cover;
+                background-color: #282828;
                 margin-bottom: 12px;
-                background: #282828;
+                object-fit: cover;
             }
 
             .artist-name {
-                font-size: 16px;
+                font-size: 14px;
                 font-weight: 600;
-                margin-bottom: 5px;
+                margin-bottom: 8px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
             }
 
             .artist-rank {
                 font-size: 12px;
-                color: #b3b3b3;
+                color: #1db954;
+                font-weight: 700;
             }
 
             .pagination {
                 display: flex;
+                gap: 8px;
                 justify-content: center;
-                gap: 10px;
-                margin-top: 30px;
+                margin-top: 20px;
             }
 
             .page-btn {
                 background-color: #333333;
                 color: #ffffff;
-                border: none;
+                border: 1px solid #282828;
                 padding: 8px 12px;
                 border-radius: 4px;
                 cursor: pointer;
-                transition: background-color 0.3s ease;
+                transition: all 0.3s ease;
             }
 
             .page-btn:hover:not(:disabled) {
+                background-color: #1db954;
+            }
+
+            .page-btn.active {
                 background-color: #1db954;
             }
 
@@ -424,53 +432,44 @@ def get_dashboard_page():
                 cursor: not-allowed;
             }
 
-            .page-btn.active {
-                 background-color: #1db954;
-             }
+            .features-card {
+                background: rgba(40, 40, 40, 0.6);
+                border: 1px solid #282828;
+                border-radius: 8px;
+                padding: 20px;
+            }
 
-             .features-card {
-                 background: rgba(30, 30, 30, 0.6);
-                 border: 1px solid #282828;
-                 border-radius: 8px;
-                 padding: 25px;
-                 max-width: 500px;
-             }
+            .feature-item {
+                margin-bottom: 20px;
+            }
 
-             .feature-item {
-                 margin-bottom: 20px;
-             }
+            .feature-label {
+                font-size: 14px;
+                color: #b3b3b3;
+                margin-bottom: 8px;
+            }
 
-             .feature-label {
-                 font-size: 14px;
-                 color: #b3b3b3;
-                 margin-bottom: 8px;
-             }
+            .feature-value {
+                font-size: 18px;
+                font-weight: 600;
+                margin-bottom: 8px;
+            }
 
-             .feature-value {
-                 font-size: 18px;
-                 font-weight: 600;
-                 color: #1db954;
-             }
+            .feature-bar {
+                background-color: #282828;
+                border-radius: 4px;
+                height: 8px;
+                overflow: hidden;
+            }
 
-             .feature-bar {
-                 background: #282828;
-                 height: 6px;
-                 border-radius: 3px;
-                 margin-top: 8px;
-                 overflow: hidden;
-             }
+            .feature-bar-fill {
+                background-color: #1db954;
+                height: 100%;
+                border-radius: 4px;
+                transition: width 0.3s ease;
+            }
 
-             .feature-bar-fill {
-                 background: linear-gradient(90deg, #1db954, #1ed760);
-                 height: 100%;
-                 border-radius: 3px;
-             }
-
-             .track-title {
-                 margin-bottom: 20px;
-             }
-
-             .track-title .track-name {
+            .track-name {
                  font-size: 22px;
                  font-weight: 700;
                  color: #ffffff;

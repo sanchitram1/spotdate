@@ -9,7 +9,11 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, Form, HTTPException
 from fastapi.responses import HTMLResponse
 
-from frontend import get_callback_page, get_dashboard_page, get_login_page
+from app.services.frontend import (
+    get_callback_page,
+    get_dashboard_page,
+    get_login_page,
+)
 
 load_dotenv()
 
