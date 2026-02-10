@@ -1,23 +1,38 @@
+import logging
 import os
+import sys
 from urllib.parse import urlencode
 
 import httpx
 from dotenv import load_dotenv
-from fastapi import BackgroundTasks, FastAPI, Form, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi import BackgroundTasks, FastAPI, HTTPException
+from fastapi.responses import HTMLResponse, RedirectResponse
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
-from app.services.frontend import get_callback_page, get_dashboard_page, get_login_page
+from app.services.frontend import get_dashboard_page, get_login_page
 from app.services.spotify import get_top_artists, get_top_tracks
 from app.services.storage import StorageService
 
 load_dotenv()
 
-app = FastAPI()
-
 # Spotify credentials
 CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
 CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
 REDIRECT_URI = os.getenv("SPOTIFY_REDIRECT_URI")
+
+# 1. Configure the logger
+logging.basicConfig(
+    level=logging.INFO, format="%(levelname)s: %(message)s", stream=sys.stdout
+)
+logger = logging.getLogger(__name__)
+
+# Test it immediately
+print("--- PRINT TEST ---")
+logger.info("--- LOGGER TEST ---")
+
+logger.info(f"CLIENT_ID: {CLIENT_ID}")
+logger.info(f"CLIENT_SECRET: {CLIENT_SECRET}")
+logger.info(f"REDIRECT_URI: {REDIRECT_URI}")
 
 SCOPES = [
     "user-read-private",
@@ -31,6 +46,19 @@ SCOPES = [
 
 # Store tokens in memory (use database in production)
 user_tokens = {}
+
+app = FastAPI()
+app.add_middleware(ProxyHeadersMiddleware)
+
+
+@app.get("/debug-vars")
+def debug_vars():
+    logger.info(f"***** Debug vars: {os.environ.keys()}")
+    return {
+        "client_id_exists": os.environ.get("SPOTIFY_CLIENT_ID") is not None,
+        "redirect_uri": os.environ.get("SPOTIFY_REDIRECT_URI"),
+        "all_keys": list(os.environ.keys()),
+    }
 
 
 # ==================== AUTHENTICATION ROUTES ====================
@@ -46,16 +74,25 @@ async def authorize():
         "scope": " ".join(SCOPES),
     }
     auth_url = f"https://accounts.spotify.com/authorize?{urlencode(params)}"
+    logger.info(f"***** Auth URL: {auth_url}")
     return {"auth_url": auth_url}
 
 
-@app.post("/api/auth/callback")
-async def callback(
-    code: str = Form(...), background_tasks: BackgroundTasks = BackgroundTasks()
-):
-    """Exchange authorization code for access token"""
+# 2. SIMPLIFY THE CALLBACK (Remove the HTML/JS Middleman)
+# This replaces BOTH your @app.get('/callback') and @app.post('/api/auth/callback')
+@app.get("/callback")
+async def callback(code: str, background_tasks: BackgroundTasks):
+    """
+    Direct Server-Side Callback.
+    No HTML/JS middleman means no 'fetch' errors and no CORS issues.
+    """
     try:
+        logger.info(f"***** Callback received with code: {code}")
+        logger.info(f"***** Redirect URI: {REDIRECT_URI}")
+        logger.info(f"***** Client ID: {CLIENT_ID}")
+        logger.info(f"***** Client Secret: {CLIENT_SECRET}")
         async with httpx.AsyncClient() as client:
+            # Exchange Code for Token using REAL Spotify URL
             response = await client.post(
                 "https://accounts.spotify.com/api/token",
                 data={
@@ -65,12 +102,13 @@ async def callback(
                     "client_id": CLIENT_ID,
                     "client_secret": CLIENT_SECRET,
                 },
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
             )
             response.raise_for_status()
             token_data = response.json()
             access_token = token_data["access_token"]
 
-            # Get user info
+            # Get User Profile
             user_response = await client.get(
                 "https://api.spotify.com/v1/me",
                 headers={"Authorization": f"Bearer {access_token}"},
@@ -78,15 +116,17 @@ async def callback(
             user_data = user_response.json()
             user_id = user_data.get("id")
 
-            # Store token in memory
+            # Store & Background Task
             user_tokens[user_id] = access_token
-
-            # Trigger background task to ingest user data
             background_tasks.add_task(ingest_user_data, user_id, access_token)
 
-            return {"user_id": user_id, "access_token": access_token}
+            # Redirect straight to dashboard
+            return RedirectResponse(url="/dashboard")
+
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        # This will show up in Cloud Run logs
+        logger.error(f"Auth Failed: {e}")
+        raise HTTPException(status_code=400, detail="Authentication failed")
 
 
 # ==================== DATA FETCHING ROUTES ====================
@@ -146,13 +186,14 @@ async def playlists_endpoint(user_id: str, limit: int = 50):
 @app.get("/", response_class=HTMLResponse)
 async def root():
     """Serve login page"""
+    logger.info("***** Serving login page *****")
     return get_login_page()
 
 
-@app.get("/callback", response_class=HTMLResponse)
-async def callback_page():
-    """Serve OAuth callback page"""
-    return get_callback_page()
+# @app.get("/callback", response_class=HTMLResponse)
+# async def callback_page():
+#     """Serve OAuth callback page"""
+#     return get_callback_page()
 
 
 @app.get("/dashboard", response_class=HTMLResponse)
@@ -184,9 +225,9 @@ async def ingest_user_data(user_id: str, access_token: str) -> None:
         storage_service.upload_json(artists_data, f"{user_id}/artists.json")
         storage_service.upload_json(tracks_data, f"{user_id}/tracks.json")
 
-        print(f"Successfully ingested data for user {user_id}")
+        logger.info(f"Successfully ingested data for user {user_id}")
     except Exception as e:
-        print(f"Error ingesting data for user {user_id}: {str(e)}")
+        logger.error(f"Error ingesting data for user {user_id}: {str(e)}")
 
 
 if __name__ == "__main__":
