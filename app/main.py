@@ -1,12 +1,9 @@
-import json
 import os
-from datetime import datetime
-from pathlib import Path
 from urllib.parse import urlencode
 
 import httpx
 from dotenv import load_dotenv
-from fastapi import FastAPI, Form, HTTPException
+from fastapi import BackgroundTasks, FastAPI, Form, HTTPException
 from fastapi.responses import HTMLResponse
 
 from app.services.frontend import (
@@ -14,6 +11,8 @@ from app.services.frontend import (
     get_dashboard_page,
     get_login_page,
 )
+from app.services.spotify import get_top_artists, get_top_tracks
+from app.services.storage import StorageService
 
 load_dotenv()
 
@@ -37,10 +36,6 @@ SCOPES = [
 # Store tokens in memory (use database in production)
 user_tokens = {}
 
-# Data directory for saving fetched data
-DATA_DIR = Path("fetched_data")
-DATA_DIR.mkdir(exist_ok=True)
-
 
 # ==================== AUTHENTICATION ROUTES ====================
 
@@ -59,7 +54,7 @@ async def authorize():
 
 
 @app.post("/api/auth/callback")
-async def callback(code: str = Form(...)):
+async def callback(code: str = Form(...), background_tasks: BackgroundTasks = BackgroundTasks()):
     """Exchange authorization code for access token"""
     try:
         async with httpx.AsyncClient() as client:
@@ -88,6 +83,9 @@ async def callback(code: str = Form(...)):
             # Store token in memory
             user_tokens[user_id] = access_token
 
+            # Trigger background task to ingest user data
+            background_tasks.add_task(ingest_user_data, user_id, access_token)
+
             return {"user_id": user_id, "access_token": access_token}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -97,34 +95,23 @@ async def callback(code: str = Form(...)):
 
 
 @app.get("/api/data/top-artists")
-async def get_top_artists(
+async def top_artists_endpoint(
     user_id: str, time_range: str = "medium_term", limit: int = 50
 ):
-    """Get user's top artists and save to fetched_data folder"""
+    """Get user's top artists"""
     if user_id not in user_tokens:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
     token = user_tokens[user_id]
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                "https://api.spotify.com/v1/me/top/artists",
-                headers={"Authorization": f"Bearer {token}"},
-                params={"time_range": time_range, "limit": limit},
-            )
-            response.raise_for_status()
-            data = response.json()
-
-            # Save data locally
-            save_artist_data(user_id, data)
-
-            return data
+        data = await get_top_artists(token, time_range, limit)
+        return data
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.get("/api/data/top-tracks")
-async def get_top_tracks(
+async def top_tracks_endpoint(
     user_id: str, time_range: str = "medium_term", limit: int = 50
 ):
     """Get user's top tracks"""
@@ -133,34 +120,23 @@ async def get_top_tracks(
 
     token = user_tokens[user_id]
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                "https://api.spotify.com/v1/me/top/tracks",
-                headers={"Authorization": f"Bearer {token}"},
-                params={"time_range": time_range, "limit": limit},
-            )
-            response.raise_for_status()
-            return response.json()
+        data = await get_top_tracks(token, time_range, limit)
+        return data
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.get("/api/data/playlists")
-async def get_playlists(user_id: str, limit: int = 50):
+async def playlists_endpoint(user_id: str, limit: int = 50):
     """Get user's playlists"""
     if user_id not in user_tokens:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
     token = user_tokens[user_id]
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                "https://api.spotify.com/v1/me/playlists",
-                headers={"Authorization": f"Bearer {token}"},
-                params={"limit": limit},
-            )
-            response.raise_for_status()
-            return response.json()
+        from app.services.spotify import get_playlists
+        data = await get_playlists(token, limit)
+        return data
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -186,21 +162,32 @@ async def dashboard():
     return get_dashboard_page()
 
 
-# ==================== UTILITY FUNCTIONS ====================
+# ==================== BACKGROUND TASKS ====================
 
 
-def save_artist_data(user_id: str, data: dict) -> None:
-    """Save artist data to fetched_data/{user_id}/artists_YYYY-MM-DD.json"""
-    user_dir = DATA_DIR / user_id
-    user_dir.mkdir(exist_ok=True)
-
-    # Use today's date for filename
-    date_str = datetime.now().strftime("%Y-%m-%d")
-    file_path = user_dir / f"artists_{date_str}.json"
-
-    # Save with formatting for readability
-    with open(file_path, "w") as f:
-        json.dump(data, f, indent=2)
+async def ingest_user_data(user_id: str, access_token: str) -> None:
+    """
+    Background task to fetch and upload user data to GCS
+    
+    Args:
+        user_id: Spotify user ID
+        access_token: Spotify access token
+    """
+    try:
+        # Initialize storage service
+        storage_service = StorageService()
+        
+        # Fetch top artists and tracks
+        artists_data = await get_top_artists(access_token, limit=50)
+        tracks_data = await get_top_tracks(access_token, limit=50)
+        
+        # Upload to GCS
+        storage_service.upload_json(artists_data, f"{user_id}/artists.json")
+        storage_service.upload_json(tracks_data, f"{user_id}/tracks.json")
+        
+        print(f"Successfully ingested data for user {user_id}")
+    except Exception as e:
+        print(f"Error ingesting data for user {user_id}: {str(e)}")
 
 
 if __name__ == "__main__":

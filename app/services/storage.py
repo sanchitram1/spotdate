@@ -4,6 +4,7 @@ import json
 import os
 from typing import Optional
 
+from google.api_core import client_options as client_options_lib
 from google.auth import default
 from google.cloud import storage
 
@@ -14,7 +15,20 @@ class StorageService:
     def __init__(self):
         """Initialize GCS client with default credentials"""
         credentials, _ = default()
-        self.client = storage.Client(credentials=credentials)
+        
+        # Check for emulator configuration for local development
+        emulator_host = os.getenv("STORAGE_EMULATOR_HOST")
+        if emulator_host:
+            client_options = client_options_lib.ClientOptions(
+                api_endpoint=emulator_host
+            )
+            self.client = storage.Client(
+                credentials=credentials,
+                client_options=client_options
+            )
+        else:
+            self.client = storage.Client(credentials=credentials)
+        
         self.bucket_name = os.getenv("DATA_BUCKET_NAME")
 
         if not self.bucket_name:
