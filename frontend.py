@@ -1,5 +1,6 @@
 """Frontend HTML templates for Spotify Stats app"""
 
+
 def get_login_page():
     """Return the login page HTML"""
     return """
