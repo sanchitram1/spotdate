@@ -1,12 +1,13 @@
 import logging
 import os
+import secrets
 import sys
 from urllib.parse import urlencode
 
 import httpx
 from dotenv import load_dotenv
-from fastapi import BackgroundTasks, FastAPI, HTTPException
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from app.services.frontend import get_dashboard_page, get_login_page
@@ -32,7 +33,8 @@ SCOPES = [
 ]
 
 # Store tokens in memory (use database in production)
-user_tokens = {}
+# Maps session_token -> {user_id, access_token}
+sessions = {}
 
 app = FastAPI()
 app.add_middleware(ProxyHeadersMiddleware)
@@ -42,6 +44,23 @@ logging.basicConfig(
     level=logging.INFO, format="%(levelname)s: %(message)s", stream=sys.stdout
 )
 logger = logging.getLogger(__name__)
+
+# ==================== HELPER FUNCTIONS ====================
+
+
+def get_user_id_from_session(request: Request) -> tuple[str, str]:
+    """Extract user_id and access_token from session cookie"""
+    session_token = request.cookies.get("session")
+    logger.debug(f"Checking session: token={session_token}")
+    if not session_token or session_token not in sessions:
+        logger.debug("Session not found")
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    session_data = sessions[session_token]
+    user_id = session_data["user_id"]
+    access_token = session_data["access_token"]
+    logger.debug(f"Found user_id: {user_id}")
+    return user_id, access_token
+
 
 # ==================== AUTHENTICATION ROUTES ====================
 
@@ -56,7 +75,6 @@ async def authorize():
         "scope": " ".join(SCOPES),
     }
     auth_url = f"https://accounts.spotify.com/authorize?{urlencode(params)}"
-    logger.info(f"***** Auth URL: {auth_url}")
     return {"auth_url": auth_url}
 
 
@@ -69,10 +87,6 @@ async def callback(code: str, background_tasks: BackgroundTasks):
     No HTML/JS middleman means no 'fetch' errors and no CORS issues.
     """
     try:
-        logger.info(f"***** Callback received with code: {code}")
-        logger.info(f"***** Redirect URI: {REDIRECT_URI}")
-        logger.info(f"***** Client ID: {CLIENT_ID}")
-        logger.info(f"***** Client Secret: {CLIENT_SECRET}")
         async with httpx.AsyncClient() as client:
             # Exchange Code for Token using REAL Spotify URL
             response = await client.post(
@@ -98,12 +112,26 @@ async def callback(code: str, background_tasks: BackgroundTasks):
             user_data = user_response.json()
             user_id = user_data.get("id")
 
-            # Store & Background Task
-            user_tokens[user_id] = access_token
+            # Background Task
             background_tasks.add_task(ingest_user_data, user_id, access_token)
 
-            # Redirect straight to dashboard with user_id in query param
-            return RedirectResponse(url=f"/dashboard?user_id={user_id}")
+            # Create session token with both user_id and access_token
+            session_token = secrets.token_urlsafe(32)
+            sessions[session_token] = {"user_id": user_id, "access_token": access_token}
+            logger.debug(f"Session created for user {user_id}: {session_token}")
+
+            # Redirect with session cookie
+            response = RedirectResponse(url="/dashboard")
+            response.set_cookie(
+                key="session",
+                value=session_token,
+                httponly=True,
+                secure=False,  # Allow HTTP for development/proxy scenarios
+                samesite="lax",
+                max_age=30 * 24 * 60 * 60,  # 30 days
+            )
+            logger.debug("Cookie set")
+            return response
 
     except Exception as e:
         # This will show up in Cloud Run logs
@@ -116,13 +144,10 @@ async def callback(code: str, background_tasks: BackgroundTasks):
 
 @app.get("/api/data/top-artists")
 async def top_artists_endpoint(
-    user_id: str, time_range: str = "medium_term", limit: int = 50
+    request: Request, time_range: str = "medium_term", limit: int = 50
 ):
     """Get user's top artists"""
-    if user_id not in user_tokens:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
-    token = user_tokens[user_id]
+    user_id, token = get_user_id_from_session(request)
     try:
         data = await get_top_artists(token, time_range, limit)
         return data
@@ -132,13 +157,10 @@ async def top_artists_endpoint(
 
 @app.get("/api/data/top-tracks")
 async def top_tracks_endpoint(
-    user_id: str, time_range: str = "medium_term", limit: int = 50
+    request: Request, time_range: str = "medium_term", limit: int = 50
 ):
     """Get user's top tracks"""
-    if user_id not in user_tokens:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
-    token = user_tokens[user_id]
+    user_id, token = get_user_id_from_session(request)
     try:
         data = await get_top_tracks(token, time_range, limit)
         return data
@@ -147,12 +169,9 @@ async def top_tracks_endpoint(
 
 
 @app.get("/api/data/playlists")
-async def playlists_endpoint(user_id: str, limit: int = 50):
+async def playlists_endpoint(request: Request, limit: int = 50):
     """Get user's playlists"""
-    if user_id not in user_tokens:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
-    token = user_tokens[user_id]
+    user_id, token = get_user_id_from_session(request)
     try:
         from app.services.spotify import get_playlists
 
@@ -172,14 +191,31 @@ async def root():
 
 
 @app.get("/dashboard", response_class=HTMLResponse)
-async def dashboard():
+async def dashboard(request: Request):
     """Serve authenticated dashboard page"""
+    # Check if user is authenticated
+    try:
+        get_user_id_from_session(request)
+    except HTTPException:
+        # If not authenticated, redirect to login
+        return RedirectResponse(url="/")
     return get_dashboard_page()
+
+
+@app.post("/api/auth/logout")
+async def logout(request: Request):
+    """Logout user and clear session"""
+    session_token = request.cookies.get("session")
+    if session_token and session_token in sessions:
+        del sessions[session_token]
+    response = {"status": "logged out"}
+    response_obj = JSONResponse(response)
+    response_obj.delete_cookie("session")
+    return response_obj
 
 
 @app.get("/debug-vars")
 def debug_vars():
-    logger.info(f"***** Debug vars: {os.environ.keys()}")
     return {
         "client_id_exists": os.environ.get("SPOTIFY_CLIENT_ID") is not None,
         "redirect_uri": os.environ.get("SPOTIFY_REDIRECT_URI"),

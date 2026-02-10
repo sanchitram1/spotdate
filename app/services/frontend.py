@@ -104,7 +104,6 @@ def get_login_page():
     """
 
 
-
 def get_dashboard_page():
     """Return the authenticated dashboard page HTML"""
     return """
@@ -397,12 +396,6 @@ def get_dashboard_page():
                  <button class="fetch-btn" id="fetch-btn" onclick="fetchTopArtists()">Fetch Top 50 Artists</button>
              </div>
 
-             <div class="fetch-section">
-                 <h2>Export Track Features</h2>
-                 <p>Get audio features for your #1 track</p>
-                 <button class="fetch-btn" id="export-btn" onclick="exportTrackFeatures()">Get Track Features</button>
-             </div>
-
              <div class="error" id="error-message"></div>
              <div class="success" id="success-message"></div>
 
@@ -429,21 +422,18 @@ def get_dashboard_page():
             let currentPage = 1;
 
             async function logout() {
-                localStorage.removeItem('user_id');
-                localStorage.removeItem('access_token');
+                try {
+                    await fetch('/api/auth/logout', { 
+                        method: 'POST',
+                        credentials: 'include'
+                    });
+                } catch (err) {
+                    console.error('Logout error:', err);
+                }
                 window.location.href = '/';
             }
 
             async function fetchTopArtists() {
-                const userId = localStorage.getItem('user_id');
-                const token = localStorage.getItem('access_token');
-
-                if (!userId || !token) {
-                    showError('Not authenticated. Please log in again.');
-                    window.location.href = '/';
-                    return;
-                }
-
                 document.getElementById('fetch-btn').disabled = true;
                 document.getElementById('loading').style.display = 'block';
                 document.getElementById('error-message').style.display = 'none';
@@ -451,7 +441,9 @@ def get_dashboard_page():
                 document.getElementById('results').style.display = 'none';
 
                 try {
-                    const res = await fetch(`/api/data/top-artists?user_id=${userId}&limit=50`);
+                    const res = await fetch(`/api/data/top-artists?limit=50`, {
+                        credentials: 'include'
+                    });
                     if (!res.ok) throw new Error('Failed to fetch artists');
 
                     const data = await res.json();
@@ -528,104 +520,10 @@ def get_dashboard_page():
                  successDiv.style.display = 'block';
              }
 
-             async function exportTrackFeatures() {
-                 const userId = localStorage.getItem('user_id');
-                 const token = localStorage.getItem('access_token');
-
-                 if (!userId || !token) {
-                     showError('Not authenticated. Please log in again.');
-                     window.location.href = '/';
-                     return;
-                 }
-
-                 document.getElementById('export-btn').disabled = true;
-                 document.getElementById('loading').style.display = 'block';
-                 document.getElementById('error-message').style.display = 'none';
-                 document.getElementById('success-message').style.display = 'none';
-                 document.getElementById('results').style.display = 'none';
-                 document.getElementById('features-results').style.display = 'none';
-                 document.getElementById('loading').querySelector('p').textContent = 'Fetching track features...';
-
-                 try {
-                     const res = await fetch(`/api/data/export-track-features?user_id=${userId}&time_range=short_term`);
-                     if (!res.ok) throw new Error('Failed to fetch track features');
-
-                     const data = await res.json();
-                     displayTrackFeatures(data);
-                 } catch (err) {
-                     console.error('Error:', err);
-                     showError('Failed to fetch track features. Please try again.');
-                 } finally {
-                     document.getElementById('loading').style.display = 'none';
-                     document.getElementById('export-btn').disabled = false;
-                     document.getElementById('loading').querySelector('p').textContent = 'Fetching your top artists...';
-                 }
-             }
-
-             function displayTrackFeatures(data) {
-                 const track = data.track;
-                 const features = data.audio_features;
-
-                 document.getElementById('features-title').textContent = '#1 Track: Audio Features';
-                 const card = document.getElementById('features-card');
-                 
-                 card.innerHTML = `
-                     <div class="track-title">
-                         <div class="track-name">${track.name}</div>
-                         <div class="track-artist">by ${track.artist}</div>
-                     </div>
-                     <div class="feature-item">
-                         <div class="feature-label">Danceability</div>
-                         <div class="feature-value">${(features.danceability * 100).toFixed(1)}%</div>
-                         <div class="feature-bar">
-                             <div class="feature-bar-fill" style="width: ${features.danceability * 100}%"></div>
-                         </div>
-                     </div>
-                     <div class="feature-item">
-                         <div class="feature-label">Energy</div>
-                         <div class="feature-value">${(features.energy * 100).toFixed(1)}%</div>
-                         <div class="feature-bar">
-                             <div class="feature-bar-fill" style="width: ${features.energy * 100}%"></div>
-                         </div>
-                     </div>
-                     <div class="feature-item">
-                         <div class="feature-label">Valence (Happiness)</div>
-                         <div class="feature-value">${(features.valence * 100).toFixed(1)}%</div>
-                         <div class="feature-bar">
-                             <div class="feature-bar-fill" style="width: ${features.valence * 100}%"></div>
-                         </div>
-                     </div>
-                     <div class="feature-item">
-                         <div class="feature-label">Acousticness</div>
-                         <div class="feature-value">${(features.acousticness * 100).toFixed(1)}%</div>
-                         <div class="feature-bar">
-                             <div class="feature-bar-fill" style="width: ${features.acousticness * 100}%"></div>
-                         </div>
-                     </div>
-                     <div class="feature-item">
-                         <div class="feature-label">Tempo</div>
-                         <div class="feature-value">${features.tempo.toFixed(1)} BPM</div>
-                     </div>
-                 `;
-                 
-                 document.getElementById('features-results').style.display = 'block';
-             }
-
              window.addEventListener('load', () => {
-                 // Try to get user_id from URL first (after OAuth redirect)
-                 const params = new URLSearchParams(window.location.search);
-                 let userId = params.get('user_id') || localStorage.getItem('user_id');
-                 const token = localStorage.getItem('access_token');
-                 
-                 if (!userId) {
-                     window.location.href = '/';
-                     return;
-                 }
-                 
-                 // Store user_id if it came from URL
-                 if (params.get('user_id')) {
-                     localStorage.setItem('user_id', userId);
-                 }
+                 // Session authentication is handled by cookies automatically
+                 // If user is not authenticated, the API will return 401
+                 // and redirect will happen from the fetch error handler
              });
         </script>
     </body>
