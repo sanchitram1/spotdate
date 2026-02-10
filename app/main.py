@@ -6,11 +6,7 @@ from dotenv import load_dotenv
 from fastapi import BackgroundTasks, FastAPI, Form, HTTPException
 from fastapi.responses import HTMLResponse
 
-from app.services.frontend import (
-    get_callback_page,
-    get_dashboard_page,
-    get_login_page,
-)
+from app.services.frontend import get_callback_page, get_dashboard_page, get_login_page
 from app.services.spotify import get_top_artists, get_top_tracks
 from app.services.storage import StorageService
 
@@ -19,9 +15,9 @@ load_dotenv()
 app = FastAPI()
 
 # Spotify credentials
-CLIENT_ID = os.getenv("REACT_APP_SPOTIFY_CLIENT_ID")
+CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
 CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
-REDIRECT_URI = os.getenv("REACT_APP_REDIRECT_URI")
+REDIRECT_URI = os.getenv("SPOTIFY_REDIRECT_URI")
 
 SCOPES = [
     "user-read-private",
@@ -54,7 +50,9 @@ async def authorize():
 
 
 @app.post("/api/auth/callback")
-async def callback(code: str = Form(...), background_tasks: BackgroundTasks = BackgroundTasks()):
+async def callback(
+    code: str = Form(...), background_tasks: BackgroundTasks = BackgroundTasks()
+):
     """Exchange authorization code for access token"""
     try:
         async with httpx.AsyncClient() as client:
@@ -135,6 +133,7 @@ async def playlists_endpoint(user_id: str, limit: int = 50):
     token = user_tokens[user_id]
     try:
         from app.services.spotify import get_playlists
+
         data = await get_playlists(token, limit)
         return data
     except Exception as e:
@@ -168,7 +167,7 @@ async def dashboard():
 async def ingest_user_data(user_id: str, access_token: str) -> None:
     """
     Background task to fetch and upload user data to GCS
-    
+
     Args:
         user_id: Spotify user ID
         access_token: Spotify access token
@@ -176,15 +175,15 @@ async def ingest_user_data(user_id: str, access_token: str) -> None:
     try:
         # Initialize storage service
         storage_service = StorageService()
-        
+
         # Fetch top artists and tracks
         artists_data = await get_top_artists(access_token, limit=50)
         tracks_data = await get_top_tracks(access_token, limit=50)
-        
+
         # Upload to GCS
         storage_service.upload_json(artists_data, f"{user_id}/artists.json")
         storage_service.upload_json(tracks_data, f"{user_id}/tracks.json")
-        
+
         print(f"Successfully ingested data for user {user_id}")
     except Exception as e:
         print(f"Error ingesting data for user {user_id}: {str(e)}")

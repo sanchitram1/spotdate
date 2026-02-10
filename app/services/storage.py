@@ -4,9 +4,14 @@ import json
 import os
 from typing import Optional
 
+from dotenv import load_dotenv
 from google.api_core import client_options as client_options_lib
 from google.auth import default
 from google.cloud import storage
+
+load_dotenv()
+
+GCS_BUCKET_NAME = os.getenv("GCS_BUCKET_NAME")
 
 
 class StorageService:
@@ -15,7 +20,7 @@ class StorageService:
     def __init__(self):
         """Initialize GCS client with default credentials"""
         credentials, _ = default()
-        
+
         # Check for emulator configuration for local development
         emulator_host = os.getenv("STORAGE_EMULATOR_HOST")
         if emulator_host:
@@ -23,16 +28,15 @@ class StorageService:
                 api_endpoint=emulator_host
             )
             self.client = storage.Client(
-                credentials=credentials,
-                client_options=client_options
+                credentials=credentials, client_options=client_options
             )
         else:
             self.client = storage.Client(credentials=credentials)
-        
-        self.bucket_name = os.getenv("DATA_BUCKET_NAME")
+
+        self.bucket_name = GCS_BUCKET_NAME
 
         if not self.bucket_name:
-            raise ValueError("DATA_BUCKET_NAME environment variable is not set")
+            raise ValueError("GCS_BUCKET_NAME environment variable is not set")
 
         self.bucket = self.client.bucket(self.bucket_name)
 
