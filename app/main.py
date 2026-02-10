@@ -20,20 +20,7 @@ CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
 CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
 REDIRECT_URI = os.getenv("SPOTIFY_REDIRECT_URI")
 
-# 1. Configure the logger
-logging.basicConfig(
-    level=logging.INFO, format="%(levelname)s: %(message)s", stream=sys.stdout
-)
-logger = logging.getLogger(__name__)
-
-# Test it immediately
-print("--- PRINT TEST ---")
-logger.info("--- LOGGER TEST ---")
-
-logger.info(f"CLIENT_ID: {CLIENT_ID}")
-logger.info(f"CLIENT_SECRET: {CLIENT_SECRET}")
-logger.info(f"REDIRECT_URI: {REDIRECT_URI}")
-
+# Spotify scopes
 SCOPES = [
     "user-read-private",
     "user-read-email",
@@ -50,16 +37,11 @@ user_tokens = {}
 app = FastAPI()
 app.add_middleware(ProxyHeadersMiddleware)
 
-
-@app.get("/debug-vars")
-def debug_vars():
-    logger.info(f"***** Debug vars: {os.environ.keys()}")
-    return {
-        "client_id_exists": os.environ.get("SPOTIFY_CLIENT_ID") is not None,
-        "redirect_uri": os.environ.get("SPOTIFY_REDIRECT_URI"),
-        "all_keys": list(os.environ.keys()),
-    }
-
+# Create the logger
+logging.basicConfig(
+    level=logging.INFO, format="%(levelname)s: %(message)s", stream=sys.stdout
+)
+logger = logging.getLogger(__name__)
 
 # ==================== AUTHENTICATION ROUTES ====================
 
@@ -120,8 +102,8 @@ async def callback(code: str, background_tasks: BackgroundTasks):
             user_tokens[user_id] = access_token
             background_tasks.add_task(ingest_user_data, user_id, access_token)
 
-            # Redirect straight to dashboard
-            return RedirectResponse(url="/dashboard")
+            # Redirect straight to dashboard with user_id in query param
+            return RedirectResponse(url=f"/dashboard?user_id={user_id}")
 
     except Exception as e:
         # This will show up in Cloud Run logs
@@ -186,20 +168,23 @@ async def playlists_endpoint(user_id: str, limit: int = 50):
 @app.get("/", response_class=HTMLResponse)
 async def root():
     """Serve login page"""
-    logger.info("***** Serving login page *****")
     return get_login_page()
-
-
-# @app.get("/callback", response_class=HTMLResponse)
-# async def callback_page():
-#     """Serve OAuth callback page"""
-#     return get_callback_page()
 
 
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard():
     """Serve authenticated dashboard page"""
     return get_dashboard_page()
+
+
+@app.get("/debug-vars")
+def debug_vars():
+    logger.info(f"***** Debug vars: {os.environ.keys()}")
+    return {
+        "client_id_exists": os.environ.get("SPOTIFY_CLIENT_ID") is not None,
+        "redirect_uri": os.environ.get("SPOTIFY_REDIRECT_URI"),
+        "all_keys": list(os.environ.keys()),
+    }
 
 
 # ==================== BACKGROUND TASKS ====================

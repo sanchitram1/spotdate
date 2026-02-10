@@ -104,104 +104,6 @@ def get_login_page():
     """
 
 
-def get_callback_page():
-    """Return the OAuth callback page HTML"""
-    return """
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Authenticating...</title>
-        <style>
-            * {
-                margin: 0;
-                padding: 0;
-                box-sizing: border-box;
-            }
-
-            body {
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-                background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%);
-                min-height: 100vh;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                color: #ffffff;
-            }
-
-            .container {
-                text-align: center;
-            }
-
-            .spinner {
-                border: 4px solid #333333;
-                border-top: 4px solid #1db954;
-                border-radius: 50%;
-                width: 40px;
-                height: 40px;
-                animation: spin 1s linear infinite;
-                margin: 0 auto 20px;
-            }
-
-            @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-            }
-
-            h1 {
-                font-size: 24px;
-                font-weight: 600;
-            }
-
-            .subtitle {
-                color: #b3b3b3;
-                margin-top: 10px;
-                font-size: 14px;
-            }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <div class="spinner"></div>
-            <h1>Authenticating...</h1>
-            <p class="subtitle">One moment, we're logging you in with Spotify</p>
-        </div>
-
-        <script>
-            async function handleCallback() {
-                const params = new URLSearchParams(window.location.search);
-                const code = params.get('code');
-                
-                if (code) {
-                    try {
-                        const res = await fetch('/api/auth/callback', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                            body: 'code=' + code
-                        });
-                        
-                        if (!res.ok) {
-                            throw new Error('Authentication failed');
-                        }
-                        
-                        const data = await res.json();
-                        localStorage.setItem('user_id', data.user_id);
-                        localStorage.setItem('access_token', data.access_token);
-                        window.location.href = '/dashboard';
-                    } catch (err) {
-                        console.error('Error:', err);
-                        window.location.href = '/';
-                    }
-                }
-            }
-            
-            handleCallback();
-        </script>
-    </body>
-    </html>
-    """
-
 
 def get_dashboard_page():
     """Return the authenticated dashboard page HTML"""
@@ -710,10 +612,19 @@ def get_dashboard_page():
              }
 
              window.addEventListener('load', () => {
-                 const userId = localStorage.getItem('user_id');
+                 // Try to get user_id from URL first (after OAuth redirect)
+                 const params = new URLSearchParams(window.location.search);
+                 let userId = params.get('user_id') || localStorage.getItem('user_id');
                  const token = localStorage.getItem('access_token');
-                 if (!userId || !token) {
+                 
+                 if (!userId) {
                      window.location.href = '/';
+                     return;
+                 }
+                 
+                 // Store user_id if it came from URL
+                 if (params.get('user_id')) {
+                     localStorage.setItem('user_id', userId);
                  }
              });
         </script>
