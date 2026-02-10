@@ -46,6 +46,7 @@ Once You have google-cloud-sdk, then you need login **with your Berkeley email**
 
 ```bash
 gcloud auth application-default login
+gcloud config set project analytics-lab-486317
 ```
 
 Once that's done, you can sync the data from GCS to your machine:
