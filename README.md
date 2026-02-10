@@ -48,11 +48,7 @@ Once You have google-cloud-sdk, then you need login **with your Berkeley email**
 gcloud auth application-default login
 ```
 
-# Install the python lib
-uv sync
-```
-
-Then run the file
+Once that's done, you can sync the data from GCS to your machine:
 
 ```bash
 uv run scripts/sync_data.py
