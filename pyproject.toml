@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "fastapi==0.104.1",
+    "formdt>=0.6.0",
     "google-auth>=2.48.0",
     "google-cloud-storage>=3.9.0",
     "grpcio>=1.78.0",
