@@ -1,7 +1,7 @@
 [project]
 name = "spotify-app"
 version = "0.1.0"
-description = "Add your description here"
+description = "An ML model to match people based on listening histories"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
@@ -28,4 +28,11 @@ dev = [
     "pytest>=9.0.2",
     "pytest-cov>=7.0.0",
     "ruff>=0.15.0",
+]
+
+[tool.setuptools]
+packages = [
+    "training.feature_extraction",
+    "training.labeling",
+    "utils",
 ]
