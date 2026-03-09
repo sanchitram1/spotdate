@@ -5,7 +5,8 @@ import pandas as pd
 from utils.logger import get_logger
 
 logger = get_logger("feature_extraction", 20)
-# OUTPUT_PATH = "../../data"
+
+CUTOFF_TIMESTAMP = "2012-03-26 13:30:08+00:00"
 
 
 def parse_args() -> argparse.Namespace:
@@ -91,8 +92,21 @@ def main():
     output = args.output
 
     # pipeline
+    logger.info("Loading listening history from %s", input)
     listening_history = pd.read_csv(input, delimiter=";")
-    user_df = basic(listening_history=listening_history)
+
+    # VIP: features cannot include future dates, bc we gotta train on past data
+    logger.info("Converting to timestamp")
+    listening_history["listen_timestamp"] = pd.to_datetime(
+        listening_history["listen_timestamp"], errors="coerce", utc=True
+    )
+    cutoff_date = pd.Timestamp(CUTOFF_TIMESTAMP)
+
+    # filter
+    logger.info("Using fixed cutoff date: %s", cutoff_date)
+    past_df = listening_history[listening_history["listen_timestamp"] <= cutoff_date]
+
+    user_df = basic(listening_history=past_df)
     user_df.to_csv(f"{output}/features_df.csv")
 
 

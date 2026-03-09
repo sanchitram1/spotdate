@@ -8,8 +8,9 @@ from utils.logger import get_logger
 
 # Hyperparameters / defaults
 POPULARITY_FILL = 50
-TIME_QUANTILE = 0.8
 TOP_K = 7
+# Fixed cutoff used to split past vs future listening history
+CUTOFF_TIMESTAMP = "2012-03-26 13:30:08+00:00"
 
 logger = get_logger("label_generation", 20)
 
@@ -63,8 +64,8 @@ def generate_edgelist(listening_history: pd.DataFrame) -> pd.DataFrame:
         )
 
     # Time-based split: past vs future
-    cutoff_date = listening_history["listen_timestamp"].quantile(TIME_QUANTILE)
-    logger.info("Computed cutoff date at quantile %.2f: %s", TIME_QUANTILE, cutoff_date)
+    cutoff_date = pd.Timestamp(CUTOFF_TIMESTAMP)
+    logger.info("Using fixed cutoff date: %s", cutoff_date)
 
     past_df = listening_history[listening_history["listen_timestamp"] <= cutoff_date]
     future_df = listening_history[listening_history["listen_timestamp"] > cutoff_date]
