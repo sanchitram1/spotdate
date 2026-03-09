@@ -599,6 +599,15 @@ wheels = [
 ]
 
 [[package]]
+name = "formdt"
+version = "0.6.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/48/c4/c3734ef57dda777dc6567daa25eeb494406cd4ac8d02edf84705d67e0a3b/formdt-0.6.0.tar.gz", hash = "sha256:a8dfb0cca7ba6cfcfa9cbe5ee78e1d3bed332c759d33c6c462f039161526f5c7", size = 7404, upload-time = "2025-12-30T11:16:00.301Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/46/cf/841d19e1491383f110b26e29734f12aa910b44e6c3ff1bd4561689015972/formdt-0.6.0-py3-none-any.whl", hash = "sha256:3725bc8f114d7a3cf26aa58252849c80c596c4bb03d6e033f698c8601e6d607b", size = 5845, upload-time = "2025-12-30T11:16:00.895Z" },
+]
+
+[[package]]
 name = "fqdn"
 version = "1.5.1"
 source = { registry = "https://pypi.org/simple" }
@@ -2512,6 +2521,7 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "fastapi" },
+    { name = "formdt" },
     { name = "google-auth" },
     { name = "google-cloud-storage" },
     { name = "grpcio" },
@@ -2540,6 +2550,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "fastapi", specifier = "==0.104.1" },
+    { name = "formdt", specifier = ">=0.6.0" },
     { name = "google-auth", specifier = ">=2.48.0" },
     { name = "google-cloud-storage", specifier = ">=3.9.0" },
     { name = "grpcio", specifier = ">=1.78.0" },
