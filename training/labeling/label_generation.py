@@ -119,9 +119,7 @@ def hipster_overlap_edges(future_df: pd.DataFrame, top_k: int) -> pd.DataFrame:
     pair_scores = pair_scores.sort_values(
         ["user_id_anchor", "match_score"], ascending=[True, False]
     )
-    edge_list = pair_scores.groupby("user_id_anchor").head(top_k).reset_index(
-        drop=True
-    )
+    edge_list = pair_scores.groupby("user_id_anchor").head(top_k).reset_index(drop=True)
 
     return edge_list
 
@@ -148,4 +146,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

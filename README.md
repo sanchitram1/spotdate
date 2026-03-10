@@ -37,26 +37,9 @@ uv sync
 source .venv/bin/activate
 ```
 
-## Getting the data
-
-You need google-cloud-sdk. Follow [these instructions](https://docs.cloud.google.com/sdk/docs/install-sdk).
-
-Or, if you have Homebrew installed, run this:
+## Committing and Merging
 
 ```bash
-# Install the Google Cloud SDK (if they haven't)
-brew install --cask google-cloud-sdk  # macOS
-```
-
-Once You have google-cloud-sdk, then you need login **with your Berkeley email**:
-
-```bash
-gcloud auth application-default login
-gcloud config set project analytics-lab-486317
-```
-
-Once that's done, you can sync the data from GCS to your machine:
-
-```bash
-uv run scripts/sync_data.py
+uv run ruff format /path/to/directory/or/file
+uv run ruff check  /path/to/directory/or/file --fix
 ```
