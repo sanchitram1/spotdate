@@ -16,12 +16,48 @@ At a high level:
 - `main.py` is the **orchestrator**.
 - Responsibilities:
   - Load raw listening history (and any required metadata).
-  - Call into **specialized feature modules** to compute specific feature groups.
-  - Merge everything into a single dataframe.
+  - Call into **specialized feature modules** (extractors) to compute specific feature groups.
+  - Merge everything into a single user-level dataframe.
   - Write the final result to `features_df.csv`.
 
 The goal is that `main.py` is the **only entrypoint most people need**. All detailed
 feature logic should live in the submodules below.
+
+### Extractor contract
+
+All feature modules implement a shared extractor interface defined in `_contract.py`:
+
+- **Function signature**:
+  ```python
+  def extract(listening_history: pd.DataFrame) -> pd.DataFrame:
+      ...
+  ```
+- **Input**:
+  - Raw listening history with at least the columns listed in `EXPECTED_COLUMNS` in `_contract.py`
+    (e.g., `user_id`, `listen_timestamp`, `track_mbid`, `artist_mbid`, `album_mbid`, `genre`,
+    and core audio feature columns).
+- **Output**:
+  - A dataframe **keyed by `user_id`** (either indexed by `user_id` or with a `user_id` column).
+  - Only the feature columns for that family (no label columns, no side effects).
+
+`main.py` loads the listening history once, applies the global cutoff timestamp, and then
+calls each registered extractor from `extractors/` (see below), outer-joining their outputs
+on `user_id` and writing the merged result to `features_df.csv`.
+
+### Column naming convention
+
+To avoid collisions when multiple modules add features, each module should prefix its
+columns consistently:
+
+- **basic** (`extractors/basic.py`): existing names like `total_tracks`, `n_unique_tracks`,
+  `avg_*`, `genre_*` (already established).
+- **temporal** (`extractors/temporal.py`): `temporal_*` columns, e.g. `temporal_night_ratio`.
+- **genre**: higher-level genre features such as `genre_entropy`, `genre_mainstream_score`, etc.
+- **audio_features**: `audio_*` columns for learned or engineered audio embeddings.
+- **album**: `album_*` columns summarizing album-level behavior.
+- **artist**: `artist_*` columns summarizing artist affinity.
+
+New modules should follow the same pattern to keep the feature space interpretable.
 
 ### Feature module structure
 

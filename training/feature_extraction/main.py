@@ -1,8 +1,11 @@
 import argparse
+from functools import reduce
 
 import pandas as pd
 
 from utils.logger import get_logger
+from training.feature_extraction._contract import ensure_user_index
+from training.feature_extraction.extractors import EXTRACTORS
 
 logger = get_logger("feature_extraction", 20)
 
@@ -25,89 +28,45 @@ def parse_args() -> argparse.Namespace:
         "--output",
         "-o",
         required=True,
-        help="Path to the output CSV file.",
+        help="Path to the output directory.",
     )
     return parser.parse_args()
 
 
-def basic(listening_history: pd.DataFrame) -> pd.DataFrame:
-    """
-    Generates a basic user-level feature matrix from raw listening history.
-    """
-    logger.info("Extracting basic features...")
-
-    # audio features I'll average
-    audio_cols = [
-        "acousticness",
-        "danceability",
-        "energy",
-        "instrumentalness",
-        "liveness",
-        "loudness",
-        "speechiness",
-        "tempo",
-        "valence",
-    ]
-
-    # GUARD
-    for col in audio_cols:
-        listening_history[col] = pd.to_numeric(listening_history[col], errors="coerce")
-
-    # 1. aggregation
-    agg_funcs = {
-        "track_mbid": [("total_tracks", "count"), ("n_unique_tracks", "nunique")],
-        "artist_mbid": [("n_unique_artists", "nunique")],
-        "album_mbid": [("n_unique_albums", "nunique")],
-        "genre": [("n_unique_genres", "nunique")],
-    }
-
-    # average of each audio feature
-    for col in audio_cols:
-        agg_funcs[col] = [(f"avg_{col}", "mean")]
-
-    # aggregate
-    basic_features = listening_history.groupby("user_id").agg(agg_funcs)
-
-    # weird return, needs this instead of ...reset_index()
-    basic_features.columns = basic_features.columns.droplevel(0)
-
-    # 2. counts of each genre
-    logger.info("Calculating genre distributions...")
-
-    genre_counts = listening_history.groupby(["user_id", "genre"]).size()
-    genre_features = genre_counts.unstack(level="genre", fill_value=0)
-    genre_features = genre_features.add_prefix("genre_")
-
-    # 3. merge
-    final_user_features = basic_features.join(genre_features, how="left")
-    final_user_features = final_user_features.fillna(0)
-
-    return final_user_features
-
-
-def main():
-    # parse
+def main() -> None:
     args = parse_args()
-    input = args.input
-    output = args.output
+    input_path = args.input
+    output_dir = args.output
 
-    # pipeline
-    logger.info("Loading listening history from %s", input)
-    listening_history = pd.read_csv(input, delimiter=";")
+    logger.info("Loading listening history from %s", input_path)
+    listening_history = pd.read_csv(input_path, delimiter=";")
 
-    # VIP: features cannot include future dates, bc we gotta train on past data
-    logger.info("Converting to timestamp")
+    logger.info("Converting listen_timestamp to UTC-aware datetime")
     listening_history["listen_timestamp"] = pd.to_datetime(
         listening_history["listen_timestamp"], errors="coerce", utc=True
     )
     cutoff_date = pd.Timestamp(CUTOFF_TIMESTAMP)
 
-    # filter
     logger.info("Using fixed cutoff date: %s", cutoff_date)
     past_df = listening_history[listening_history["listen_timestamp"] <= cutoff_date]
 
-    user_df = basic(listening_history=past_df)
-    user_df.to_csv(f"{output}/features_df.csv")
+    feature_dfs = []
+    for name, extract_fn in EXTRACTORS:
+        logger.info("Running feature extractor: %s", name)
+        features = extract_fn(past_df)
+        features = ensure_user_index(features)
+        feature_dfs.append(features)
+
+    if not feature_dfs:
+        logger.warning("No feature extractors configured; writing empty features_df.")
+        user_df = pd.DataFrame()
+    else:
+        user_df = reduce(lambda left, right: left.join(right, how="outer"), feature_dfs)
+        user_df = user_df.fillna(0)
+
+    output_path = f"{output_dir}/features_df.csv"
+    logger.info("Writing features to %s", output_path)
+    user_df.to_csv(output_path)
 
 
 if __name__ == "__main__":
