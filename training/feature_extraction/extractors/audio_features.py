@@ -22,4 +22,3 @@ def extract(listening_history: pd.DataFrame) -> pd.DataFrame:
     df.index.name = "user_id"
 
     return df
-

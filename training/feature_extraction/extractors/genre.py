@@ -14,11 +14,12 @@ def extract(listening_history: pd.DataFrame) -> pd.DataFrame:
     - Output: dataframe indexed by user_id with genre_* feature columns
       (e.g., genre_entropy, genre_mainstream_score, etc.).
     """
-    logger.info("Genre feature extractor is not yet implemented; returning empty frame.")
+    logger.info(
+        "Genre feature extractor is not yet implemented; returning empty frame."
+    )
 
     user_ids = listening_history["user_id"].dropna().unique()
     df = pd.DataFrame(index=user_ids)
     df.index.name = "user_id"
 
     return df
-

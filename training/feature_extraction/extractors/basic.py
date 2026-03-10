@@ -53,4 +53,3 @@ def extract(listening_history: pd.DataFrame) -> pd.DataFrame:
     final_user_features = final_user_features.fillna(0)
 
     return final_user_features
-

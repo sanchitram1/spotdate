@@ -57,4 +57,3 @@ def extract(listening_history: pd.DataFrame) -> pd.DataFrame:
     df = night_ratio(df, listening_history)
 
     return df
-
