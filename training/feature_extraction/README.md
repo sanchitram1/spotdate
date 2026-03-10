@@ -12,7 +12,11 @@ end-to-end.
 - **Run only one feature group and print the result**:
 
 ```bash
-❯ uv run training/feature_extraction/main.py --input data/naive-sample-subset.csv -o data/test.csv --only temporal --print
+uv run training/feature_extraction/main.py \
+  --input data/naive-sample-subset.csv \
+  --output data/test.csv \
+  --only temporal \
+  --print
 ```
 
 At a high level:
@@ -22,8 +26,7 @@ At a high level:
 - **Output**: `features_df.csv`, where:
   - Each row is a **user**.
   - Each column is a **feature** that summarizes some aspect of that user's
-    listening
-behavior or taste.
+    listening behavior or taste.
 
 ### main.py
 
