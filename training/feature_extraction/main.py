@@ -1,5 +1,6 @@
 import argparse
 from functools import reduce
+import os
 
 import pandas as pd
 
@@ -28,7 +29,25 @@ def parse_args() -> argparse.Namespace:
         "--output",
         "-o",
         required=True,
-        help="Path to the output directory.",
+        help="Path to the output CSV file (or an output directory).",
+    )
+    parser.add_argument(
+        "--only",
+        choices=[name for name, _ in EXTRACTORS],
+        default=None,
+        help="Run only a single feature extractor (by name).",
+    )
+    parser.add_argument(
+        "--print",
+        dest="print_result",
+        action="store_true",
+        help="Print the resulting user-level dataframe to stdout.",
+    )
+    parser.add_argument(
+        "--print-rows",
+        type=int,
+        default=25,
+        help="Number of rows to print when --print is set (default: 25).",
     )
     return parser.parse_args()
 
@@ -36,7 +55,10 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     input_path = args.input
-    output_dir = args.output
+    output = args.output
+    only = args.only
+    print_result = args.print_result
+    print_rows = args.print_rows
 
     logger.info("Loading listening history from %s", input_path)
     listening_history = pd.read_csv(input_path, delimiter=";")
@@ -52,6 +74,8 @@ def main() -> None:
 
     feature_dfs = []
     for name, extract_fn in EXTRACTORS:
+        if only is not None and name != only:
+            continue
         logger.info("Running feature extractor: %s", name)
         features = extract_fn(past_df)
         features = ensure_user_index(features)
@@ -64,9 +88,17 @@ def main() -> None:
         user_df = reduce(lambda left, right: left.join(right, how="outer"), feature_dfs)
         user_df = user_df.fillna(0)
 
-    output_path = f"{output_dir}/features_df.csv"
+    if output.endswith(".csv"):
+        output_path = output
+    else:
+        os.makedirs(output, exist_ok=True)
+        output_path = f"{output}/features_df.csv"
     logger.info("Writing features to %s", output_path)
     user_df.to_csv(output_path)
+
+    if print_result:
+        with pd.option_context("display.max_rows", print_rows, "display.width", 200):
+            print(user_df.head(print_rows))
 
 
 if __name__ == "__main__":
