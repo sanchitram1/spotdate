@@ -152,12 +152,15 @@ def write_sample(
     seen_users: Set[str] = set()
     written_rows = 0
 
-    with open(input_path, "r", encoding="utf-8") as infile, open(
-        output_path,
-        "w",
-        encoding="utf-8",
-        newline="",
-    ) as outfile:
+    with (
+        open(input_path, "r", encoding="utf-8") as infile,
+        open(
+            output_path,
+            "w",
+            encoding="utf-8",
+            newline="",
+        ) as outfile,
+    ):
         header = infile.readline()
         if header:
             outfile.write(header)
@@ -231,4 +234,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
