@@ -54,6 +54,4 @@ def extract(listening_history: pd.DataFrame) -> pd.DataFrame:
     df = pd.DataFrame(index=user_ids)
     df.index.name = "user_id"
 
-    df = night_ratio(df, listening_history)
-
     return df
