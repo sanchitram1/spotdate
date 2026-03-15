@@ -36,7 +36,9 @@ def _build_artist_grouped_df(listening_history: pd.DataFrame) -> pd.DataFrame:
         return pd.DataFrame()
 
     count_df = (
-        listening_history.groupby("artist_mbid", as_index=False).size().rename(columns={"size": "global_listen_count"})
+        listening_history.groupby("artist_mbid", as_index=False)
+        .size()
+        .rename(columns={"size": "global_listen_count"})
     )
     genre_df = (
         listening_history.groupby("artist_mbid")["genre"]
@@ -51,7 +53,9 @@ def _build_artist_grouped_df(listening_history: pd.DataFrame) -> pd.DataFrame:
             .reset_index()
         )
         grouped = grouped.merge(name_df, on="artist_mbid", how="left")
-    grouped = grouped.sort_values("global_listen_count", ascending=False).reset_index(drop=True)
+    grouped = grouped.sort_values("global_listen_count", ascending=False).reset_index(
+        drop=True
+    )
     grouped["global_rank"] = np.arange(1, len(grouped) + 1, dtype=np.int64)
     return grouped
 
@@ -108,7 +112,9 @@ def extract(listening_history: pd.DataFrame) -> pd.DataFrame:
     concentration.columns = ["user_id", "artist_concentration_index"]
 
     # one_hit_wonder: (artists with count 1) / total artists
-    n_artists = user_artist_counts.groupby("user_id").size().reset_index(name="n_artists")
+    n_artists = (
+        user_artist_counts.groupby("user_id").size().reset_index(name="n_artists")
+    )
     n_one_hit = (
         user_artist_counts[user_artist_counts["listen_count"] == 1]
         .groupby("user_id")
@@ -125,7 +131,9 @@ def extract(listening_history: pd.DataFrame) -> pd.DataFrame:
 
     # favorite artist per user (artist with max listen count; tie-break by first)
     favorite = (
-        user_artist_counts.sort_values(["user_id", "listen_count", "artist_mbid"], ascending=[True, False, True])
+        user_artist_counts.sort_values(
+            ["user_id", "listen_count", "artist_mbid"], ascending=[True, False, True]
+        )
         .groupby("user_id", as_index=False)
         .first()[["user_id", "artist_mbid"]]
         .rename(columns={"artist_mbid": "favorite_artist_mbid"})
@@ -141,7 +149,9 @@ def extract(listening_history: pd.DataFrame) -> pd.DataFrame:
     hipster = hipster[["user_id", "hipster_gap"]]
 
     # artist_entropy: distinct genres among user's artists, normalized by log(n_artists + 1)
-    artist_to_genre = artist_grouped_df[["artist_mbid", "artist_genre"]].drop_duplicates()
+    artist_to_genre = artist_grouped_df[
+        ["artist_mbid", "artist_genre"]
+    ].drop_duplicates()
     user_artists = user_artist_counts[["user_id", "artist_mbid"]].drop_duplicates()
     user_genres = user_artists.merge(artist_to_genre, on="artist_mbid", how="left")
     user_genres["artist_genre"] = user_genres["artist_genre"].fillna("").astype(str)
@@ -150,7 +160,11 @@ def extract(listening_history: pd.DataFrame) -> pd.DataFrame:
         .nunique()
         .reset_index(name="distinct_genre_count")
     )
-    n_artists_per_user = user_artist_counts.groupby("user_id")["artist_mbid"].nunique().reset_index(name="n_artists")
+    n_artists_per_user = (
+        user_artist_counts.groupby("user_id")["artist_mbid"]
+        .nunique()
+        .reset_index(name="n_artists")
+    )
     entropy_df = distinct_genres.merge(n_artists_per_user, on="user_id", how="left")
     entropy_df["artist_entropy"] = np.where(
         entropy_df["n_artists"] > 0,
