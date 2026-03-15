@@ -16,17 +16,17 @@ def extract(listening_history: pd.DataFrame) -> pd.DataFrame:
     """
     logger.info("Extracting basic features...")
 
-    audio_cols = [
-        "acousticness",
-        "danceability",
-        "energy",
-        "instrumentalness",
-        "liveness",
-        "loudness",
-        "speechiness",
-        "tempo",
-        "valence",
-    ]
+    # audio_cols = [
+    #     "acousticness",
+    #     "danceability",
+    #     "energy",
+    #     "instrumentalness",
+    #     "liveness",
+    #     "loudness",
+    #     "speechiness",
+    #     "tempo",
+    #     "valence",
+    # ]
 
     # GUARD: coerce audio feature columns to numeric
     # for col in audio_cols:
