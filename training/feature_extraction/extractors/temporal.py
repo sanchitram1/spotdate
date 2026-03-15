@@ -25,9 +25,7 @@ def _ensure_hour_column(df: pd.DataFrame) -> pd.DataFrame:
 def _hourly_distribution(df: pd.DataFrame) -> pd.DataFrame:
     """Return per-user hourly listen ratio features."""
 
-    user_hour_dist = (
-        df.groupby(["user_id", "hour"]).size().unstack(fill_value=0)
-    )
+    user_hour_dist = df.groupby(["user_id", "hour"]).size().unstack(fill_value=0)
 
     total_listens = user_hour_dist.sum(axis=1).replace({0: 1})
     hour_ratio = user_hour_dist.div(total_listens, axis=0)
@@ -82,14 +80,16 @@ def _build_session_features(df: pd.DataFrame) -> pd.DataFrame:
 
     if "duration_ms" in df.columns:
         df["prev_duration_ms"] = df.groupby("user_id")["duration_ms"].shift(1)
-        df["prev_duration_ms"] = pd.to_numeric(df["prev_duration_ms"], errors="coerce").fillna(0)
+        df["prev_duration_ms"] = pd.to_numeric(
+            df["prev_duration_ms"], errors="coerce"
+        ).fillna(0)
         df["prev_duration"] = pd.to_timedelta(df["prev_duration_ms"], unit="ms")
         df["idle_gap"] = df["time_since_last"] - df["prev_duration"]
     else:
         df["idle_gap"] = df["time_since_last"]
 
-    is_new_session = (
-        df["time_since_last"].isna() | (df["idle_gap"] > pd.Timedelta(minutes=10))
+    is_new_session = df["time_since_last"].isna() | (
+        df["idle_gap"] > pd.Timedelta(minutes=10)
     )
     df["session_id"] = is_new_session.cumsum()
 
@@ -146,9 +146,13 @@ def _build_loyalty_features(df: pd.DataFrame) -> pd.DataFrame:
         return pd.DataFrame({"user_id": df["user_id"].unique()}).set_index("user_id")
 
     user_track_counts = (
-        df_popular.groupby(["user_id", "track_name"]).size().reset_index(name="listen_count")
+        df_popular.groupby(["user_id", "track_name"])
+        .size()
+        .reset_index(name="listen_count")
     )
-    loyal_pairs = user_track_counts[user_track_counts["listen_count"] >= 5][["user_id", "track_name"]]
+    loyal_pairs = user_track_counts[user_track_counts["listen_count"] >= 5][
+        ["user_id", "track_name"]
+    ]
     df_loyal = df_popular.merge(loyal_pairs, on=["user_id", "track_name"], how="inner")
 
     if df_loyal.empty:

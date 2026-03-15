@@ -65,9 +65,7 @@ def get_user_genre_counts(data: pd.DataFrame) -> pd.DataFrame:
         .reset_index(name="total_listens")
     )
 
-    user_genre_counts = user_genre_counts.merge(
-        total_listens, on="user_id", how="left"
-    )
+    user_genre_counts = user_genre_counts.merge(total_listens, on="user_id", how="left")
 
     user_genre_counts["genre_ratio"] = (
         user_genre_counts["listen_count"] / user_genre_counts["total_listens"]
@@ -122,11 +120,9 @@ def compute_genre_preference_features(
         .reset_index(name="top3_genre_ratio")
     )
 
-    preference_features = (
-        favorite_genre_ratio
-        .merge(top2_genre_ratio, on="user_id", how="left")
-        .merge(top3_genre_ratio, on="user_id", how="left")
-    )
+    preference_features = favorite_genre_ratio.merge(
+        top2_genre_ratio, on="user_id", how="left"
+    ).merge(top3_genre_ratio, on="user_id", how="left")
 
     favorite_genre = (
         sorted_counts.groupby("user_id")["genre"]
@@ -226,7 +222,9 @@ def compute_favorite_genre_audio_features(
     return audio_features
 
 
-def compute_genre_distribution_features(user_genre_counts: pd.DataFrame) -> pd.DataFrame:
+def compute_genre_distribution_features(
+    user_genre_counts: pd.DataFrame,
+) -> pd.DataFrame:
     """Compute distribution-based genre statistics."""
 
     def gini(array):
@@ -260,7 +258,7 @@ def compute_genre_distribution_features(user_genre_counts: pd.DataFrame) -> pd.D
         else:
             evenness = 0.0
 
-        hhi = np.sum(ratios ** 2)
+        hhi = np.sum(ratios**2)
         second_ratio = sorted_ratios[1] if len(sorted_ratios) > 1 else 0.0
         third_ratio = sorted_ratios[2] if len(sorted_ratios) > 2 else 0.0
         top5_ratio = sorted_ratios[:5].sum()
@@ -302,8 +300,7 @@ def build_genre_features(df: pd.DataFrame) -> pd.DataFrame:
     distribution_features = compute_genre_distribution_features(user_genre_counts)
 
     genre_features = (
-        diversity_features
-        .merge(preference_features, on="user_id", how="left")
+        diversity_features.merge(preference_features, on="user_id", how="left")
         .merge(duration_features, on="user_id", how="left")
         .merge(audio_features, on="user_id", how="left")
         .merge(distribution_features, on="user_id", how="left")
@@ -333,6 +330,3 @@ def extract(listening_history: pd.DataFrame) -> pd.DataFrame:
     genre_features_top20.index.name = "user_id"
 
     return genre_features_top20
-
-
-
