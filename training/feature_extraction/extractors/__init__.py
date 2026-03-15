@@ -14,9 +14,9 @@ ExtractorEntry = Tuple[str, FeatureExtractor]
 
 EXTRACTORS: List[ExtractorEntry] = [
     ("basic", basic_extract),
-    ("temporal", temporal_extract),
-    ("genre", genre_extract),
+    # ("temporal", temporal_extract),
+    # ("genre", genre_extract),
     ("audio_features", audio_features_extract),
-    ("album", album_extract),
-    ("artist", artist_extract),
+    # ("album", album_extract),
+    # ("artist", artist_extract),
 ]

@@ -29,8 +29,8 @@ def extract(listening_history: pd.DataFrame) -> pd.DataFrame:
     ]
 
     # GUARD: coerce audio feature columns to numeric
-    for col in audio_cols:
-        listening_history[col] = pd.to_numeric(listening_history[col], errors="coerce")
+    # for col in audio_cols:
+    #     listening_history[col] = pd.to_numeric(listening_history[col], errors="coerce")
 
     agg_funcs = {
         "track_mbid": [("total_tracks", "count"), ("n_unique_tracks", "nunique")],
@@ -39,8 +39,8 @@ def extract(listening_history: pd.DataFrame) -> pd.DataFrame:
         "genre": [("n_unique_genres", "nunique")],
     }
 
-    for col in audio_cols:
-        agg_funcs[col] = [(f"avg_{col}", "mean")]
+    # for col in audio_cols:
+    #     agg_funcs[col] = [(f"avg_{col}", "mean")]
 
     basic_features = listening_history.groupby("user_id").agg(agg_funcs)
     basic_features.columns = basic_features.columns.droplevel(0)

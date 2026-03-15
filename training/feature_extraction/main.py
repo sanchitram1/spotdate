@@ -1,12 +1,12 @@
 import argparse
-from functools import reduce
 import os
+from functools import reduce
 
 import pandas as pd
 
-from utils.logger import get_logger
 from training.feature_extraction._contract import ensure_user_index
 from training.feature_extraction.extractors import EXTRACTORS
+from utils.logger import get_logger
 
 logger = get_logger("feature_extraction", 20)
 
