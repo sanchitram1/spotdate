@@ -21,8 +21,10 @@ dependencies = [
     "python-multipart>=0.0.22",
     "ruff>=0.15.0",
     "scikit-learn>=1.8.0",
+    "scipy>=1.17.1",
     "seaborn>=0.13.2",
     "starlette>=0.27.0",
+    "tensorflow>=2.21.0",
     "torch>=2.10.0",
     "uvicorn==0.24.0",
 ]
@@ -38,5 +40,6 @@ dev = [
 packages = [
     "training.feature_extraction",
     "training.labeling",
+    "training",
     "utils",
 ]

@@ -18,9 +18,9 @@ a proxy:
 are treated as **positive pairs**.
 - All other pairs are treated as non-matches or ignored.
 
-### label_generation.py
+### heuristics.py
 
-`label_generation.py` implements the current heuristic pipeline:
+`heuristics.py` implements the current heuristic pipeline:
 
 - **1. Temporal split**
   - Split the data into **past** and **future** windows.
@@ -46,7 +46,7 @@ matches by `match_score`.
 This edgelist is the **supervision signal** used to train models that learn a
 user representation or directly score user–user pairs.
 
-### Downstream usage
+#### Downstream usage
 
 The edgelist produced here is intended to be:
 - Joined with user-level features from `feature_extraction/features_df.csv`.
@@ -60,4 +60,6 @@ can be:
 - Complemented or replaced with **observed user feedback** where available.
 - Based on a separate NNs definition of track similarity, to define similar
 listening trajectories
+
+### clustering.py
 

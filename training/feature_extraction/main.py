@@ -61,7 +61,9 @@ def main() -> None:
     print_rows = args.print_rows
 
     logger.info("Loading listening history from %s", input_path)
-    listening_history = pd.read_csv(input_path, delimiter=";")
+    listening_history: pd.DataFrame = pd.read_csv(input_path, delimiter=";")
+    unique_users: float = listening_history.user_id.nunique()
+    logger.info("Distinct user count: %s", str(unique_users))
 
     logger.info("Converting listen_timestamp to UTC-aware datetime")
     listening_history["listen_timestamp"] = pd.to_datetime(
