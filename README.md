@@ -1,15 +1,18 @@
 # spotdate
 
-This is a repo for the Analytics Lab Project; IEOR 243 at UC Berkeley. In general, the idea is to create a music dating application, matching people based on shared listening histories / music consumption pattern. 
+This is a repo for the Analytics Lab Project; IEOR 243 at UC Berkeley. In
+general, the idea is to create a music dating application, matching people based
+on shared listening histories / music consumption pattern.
 
 ## Data
 
-The [data-loading](data-loading/) directory contains all scripts related to open datasets we gathered / scraped to train our model
+The [data-loading](data-loading/) directory contains all scripts related to open
+datasets we gathered / scraped to train our model
 
 ## Setup
 
-We use [uv](https://docs.astral.sh/uv/) from Astral for dependency management and 
-virtual environments.
+We use [uv](https://docs.astral.sh/uv/) from Astral for dependency management
+and virtual environments.
 
 ### 1. Install uv
 
