@@ -63,3 +63,52 @@ listening trajectories
 
 ### clustering.py
 
+`clustering.py` implements a cluster-based labeling pipeline that represents
+each user as a **probability distribution over music taste clusters**, then
+uses cosine similarity between those distributions to find good matches.
+
+- **1. Fit KMeans on track features**
+  - Train a KMeans model (default 12 clusters) on audio feature columns
+    (`danceability`, `energy`, `tempo`, `valence`, `acousticness`,
+    `instrumentalness`, `liveness`, `speechiness`, `loudness`) from a tracks
+    dataset.
+  - Features are standardized via `StandardScaler` before clustering.
+
+- **2. Predict clusters on listening history**
+  - Rather than joining listening history back to tracks on `track_mbid`, we
+    use the fitted scaler + KMeans to **predict** a cluster label directly on
+    each listening history row (which must carry the same audio feature
+    columns).
+
+- **3. Build per-user cluster distribution vectors**
+  - For each user, count how many of their listened tracks fall into each
+    cluster, then **normalize to a probability distribution** (row sums to
+    1.0).
+  - This means a user is **not** reduced to a single "favorite cluster".
+    Instead, they are represented as a vector like
+    `[0.30, 0.00, 0.15, ..., 0.55]` capturing the full shape of their
+    listening taste across all clusters.
+
+- **4. Cosine similarity on distribution vectors**
+  - Compute pairwise cosine similarity between all user distribution vectors.
+  - **This is the key insight**: we are not comparing users by their single
+    top cluster. We are comparing the **full shape** of each user's listening
+    profile. Two users who split their listening across clusters in a similar
+    way will score highly, even if neither has a single dominant cluster.
+
+- **5. Three edgelist outputs**
+  - All outputs share the same columns: `user_anchor`, `user_match`,
+    `similarity_score`.
+  - **`edgelist_topK`** – For every user, their top-K most similar matches
+    (default K=10). Every user in the input is guaranteed to appear as a
+    `user_anchor`.
+  - **`edgelist_full`** – Every ordered `(i, j)` pair where `i ≠ j`, with
+    scores. Every user appears as a `user_anchor`.
+  - **`edgelist_high_scores`** – Only pairs whose similarity exceeds a
+    cutoff threshold (default 0.85). Users with no matches above the cutoff
+    will not appear.
+
+A guard in `main` validates that no users were lost between the input
+listening history and the final edgelists (users can be dropped if all of
+their feature rows are NaN).
+
