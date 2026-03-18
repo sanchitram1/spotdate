@@ -15,6 +15,8 @@ from utils.logger import get_logger
 
 logger = get_logger("clustering", 20)
 
+_EDGELIST_COLS = ["user_anchor", "user_match", "similarity_score"]
+
 
 @dataclass(frozen=True)
 class ClusterConfig:
@@ -37,6 +39,7 @@ class ClusterConfig:
 @dataclass(frozen=True)
 class AggregateConfig:
     top_k: int = 10
+    cutoff_score: float = 0.85
 
 
 def parse_args() -> argparse.Namespace:
@@ -49,7 +52,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--tracks", required=True, help="Path to the tracks CSV.")
     parser.add_argument(
-        "--listening_history",
+        "--listening-history",
         required=True,
         help=(
             "Path to the listening history CSV (must include user_id and track_mbid)."
@@ -79,7 +82,7 @@ def cluster_tracks(
     tracks_df: pd.DataFrame, *, config: ClusterConfig
 ) -> tuple[pd.DataFrame, StandardScaler, KMeans]:
     """Fit a KMeans model on track features and return tracks with cluster labels."""
-    _require_columns(tracks_df, ("track_mbid", *config.feature_cols), df_name="tracks")
+    _require_columns(tracks_df, config.feature_cols, df_name="tracks")
 
     before = len(tracks_df)
     tracks_df = tracks_df.dropna(subset=list(config.feature_cols)).copy()
@@ -110,32 +113,31 @@ def cluster_tracks(
 
 def aggregate_users(
     listening_history_df: pd.DataFrame,
-    track_cluster_map: pd.DataFrame,
     *,
-    config: AggregateConfig,
+    scaler: StandardScaler,
+    kmeans: KMeans,
+    config: ClusterConfig,
+    agg_config: AggregateConfig,
 ) -> pd.DataFrame:
     """Aggregate listening history into per-user cluster distribution vectors.
 
-    This stays separate because the current approach is intentionally simple and
-    we expect to improve/replace it later.
+    Uses the fitted scaler and kmeans to predict clusters directly on the
+    listening history feature columns, avoiding a join on track_mbid.
     """
-    _require_columns(listening_history_df, ("user_id", "track_mbid"), df_name="history")
-    _require_columns(track_cluster_map, ("track_mbid", "cluster"), df_name="track_map")
-
-    merged = listening_history_df.merge(
-        track_cluster_map.drop_duplicates(subset=["track_mbid"]),
-        on="track_mbid",
-        how="left",
+    _require_columns(
+        listening_history_df, ("user_id", *config.feature_cols), df_name="history"
     )
 
-    matched = int(merged["cluster"].notna().sum())
-    unmatched = int(merged["cluster"].isna().sum())
-    logger.info(
-        "Merged history with clusters. matched=%d unmatched=%d", matched, unmatched
-    )
+    before = len(listening_history_df)
+    merged = listening_history_df.dropna(subset=list(config.feature_cols)).copy()
+    dropped = before - len(merged)
+    if dropped:
+        logger.warning("Dropped %d history rows with missing features.", dropped)
 
-    merged = merged.dropna(subset=["cluster"]).copy()
-    merged["cluster"] = merged["cluster"].astype(int)
+    X = merged.loc[:, list(config.feature_cols)]
+    merged["cluster"] = kmeans.predict(scaler.transform(X))
+
+    logger.info("Predicted clusters for %d listening history rows.", len(merged))
 
     user_cluster_counts = (
         merged.groupby(["user_id", "cluster"]).size().unstack(fill_value=0)
@@ -150,28 +152,49 @@ def aggregate_users(
         user_cluster_dist.shape[1],
     )
 
-    if user_cluster_dist.shape[0] < config.top_k + 1:
+    if user_cluster_dist.shape[0] < agg_config.top_k + 1:
         logger.warning(
             "Only %d users available; cannot produce %d matches per user.",
             user_cluster_dist.shape[0],
-            config.top_k,
+            agg_config.top_k,
         )
 
     return user_cluster_dist
 
 
-def build_topk_edgelist(user_vectors: pd.DataFrame, *, top_k: int) -> pd.DataFrame:
-    if user_vectors.empty:
-        return pd.DataFrame(columns=["user_anchor", "user_match", "similarity_score"])
-
+def _compute_similarity(
+    user_vectors: pd.DataFrame,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Return (user_ids, similarity_matrix) with self-similarity zeroed out."""
     user_ids = user_vectors.index.to_numpy()
     sim = cosine_similarity(user_vectors.to_numpy())
     np.fill_diagonal(sim, -np.inf)
+    return user_ids, sim
 
+
+def build_full_edgelist(user_ids: np.ndarray, sim: np.ndarray) -> pd.DataFrame:
+    """Every ordered (i, j) pair where i != j."""
+    n = len(user_ids)
+    if n < 2:
+        return pd.DataFrame(columns=_EDGELIST_COLS)
+
+    row_idx, col_idx = np.where(np.ones((n, n), dtype=bool) & ~np.eye(n, dtype=bool))
+    return pd.DataFrame(
+        {
+            "user_anchor": user_ids[row_idx],
+            "user_match": user_ids[col_idx],
+            "similarity_score": sim[row_idx, col_idx],
+        }
+    )
+
+
+def build_topk_edgelist(
+    user_ids: np.ndarray, sim: np.ndarray, *, top_k: int
+) -> pd.DataFrame:
     n_users = sim.shape[0]
     k = min(top_k, max(0, n_users - 1))
     if k == 0:
-        return pd.DataFrame(columns=["user_anchor", "user_match", "similarity_score"])
+        return pd.DataFrame(columns=_EDGELIST_COLS)
 
     edges: list[dict[str, object]] = []
     for i in range(n_users):
@@ -191,6 +214,25 @@ def build_topk_edgelist(user_vectors: pd.DataFrame, *, top_k: int) -> pd.DataFra
     return pd.DataFrame(edges)
 
 
+def build_high_scores_edgelist(
+    user_ids: np.ndarray, sim: np.ndarray, *, cutoff_score: float
+) -> pd.DataFrame:
+    """Only pairs whose similarity is strictly above the cutoff."""
+    n = len(user_ids)
+    if n < 2:
+        return pd.DataFrame(columns=_EDGELIST_COLS)
+
+    mask = sim > cutoff_score
+    row_idx, col_idx = np.where(mask)
+    return pd.DataFrame(
+        {
+            "user_anchor": user_ids[row_idx],
+            "user_match": user_ids[col_idx],
+            "similarity_score": sim[row_idx, col_idx],
+        }
+    )
+
+
 def main() -> None:
     args = parse_args()
 
@@ -204,7 +246,7 @@ def main() -> None:
     tracks = pd.read_csv(tracks_path)
 
     logger.info("Reading listening history from %s", history_path)
-    history = pd.read_csv(history_path)
+    history = pd.read_csv(history_path, delimiter=";")
 
     logger.info("tracks shape: %s", tracks.shape)
     logger.info("history shape: %s", history.shape)
@@ -212,23 +254,57 @@ def main() -> None:
     cluster_config = ClusterConfig()
     aggregate_config = AggregateConfig()
 
-    tracks_with_cluster, _scaler, _kmeans = cluster_tracks(
-        tracks, config=cluster_config
-    )
-    track_cluster_map = tracks_with_cluster.loc[:, ["track_mbid", "cluster"]].copy()
+    _tracks_with_cluster, scaler, kmeans = cluster_tracks(tracks, config=cluster_config)
 
-    user_vectors = aggregate_users(history, track_cluster_map, config=aggregate_config)
-    edgelist = build_topk_edgelist(user_vectors, top_k=aggregate_config.top_k)
+    user_vectors = aggregate_users(
+        history,
+        scaler=scaler,
+        kmeans=kmeans,
+        config=cluster_config,
+        agg_config=aggregate_config,
+    )
+
+    expected_users = set(history["user_id"].unique())
+    actual_users = set(user_vectors.index)
+    missing_users = expected_users - actual_users
+    if missing_users:
+        raise ValueError(
+            f"{len(missing_users)} users from listening history have no cluster "
+            f"vectors (likely all feature rows were NaN). Examples: "
+            f"{sorted(missing_users)[:5]}"
+        )
+
+    user_ids, sim = _compute_similarity(user_vectors)
+    edgelist_topk = build_topk_edgelist(user_ids, sim, top_k=aggregate_config.top_k)
+    edgelist_full = build_full_edgelist(user_ids, sim)
+    edgelist_high_scores = build_high_scores_edgelist(
+        user_ids, sim, cutoff_score=aggregate_config.cutoff_score
+    )
+
+    logger.info(
+        "Edgelist sizes: topk=%d full=%d high_scores=%d",
+        len(edgelist_topk),
+        len(edgelist_full),
+        len(edgelist_high_scores),
+    )
 
     if args.no_save:
-        print(edgelist.to_csv(index=False))
+        logger.info("No save: here's the top 10 edgelist output")
+        print(edgelist_topk.head(10))
         return
 
     output_dir = Path(args.output)
     output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = output_dir / "edgelist.csv"
-    logger.info("Writing edgelist to %s", output_path)
-    edgelist.to_csv(output_path, index=False)
+
+    for name, df in (
+        (f"edgelist_top{aggregate_config.top_k}", edgelist_topk),
+        ("edgelist_full", edgelist_full),
+        ("edgelist_high_scores", edgelist_high_scores),
+    ):
+        path = output_dir / f"{name}.csv"
+        logger.info("Writing %s (%d rows) to %s", name, len(df), path)
+        df.to_csv(path, index=False)
+
     logger.info("Done.")
 
 
