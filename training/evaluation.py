@@ -302,6 +302,14 @@ def evaluate_topk(
         undirected=undirected,
     )
 
+    missing = set(pred) - set(truth)
+    if missing:
+        print(
+            f"WARNING: {len(missing)} user(s) in similarity_df have no ground-truth edges "
+            f"in the edgelist (after universe filtering). Examples: "
+            f"{sorted(missing)[:5]}"
+        )
+
     per_user = jaccard_topk(pred, truth, k=k, min_truth_neighbors=min_truth_neighbors)
     summary = summarize_jaccard(per_user, thresholds=thresholds)
 
