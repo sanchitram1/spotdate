@@ -108,5 +108,5 @@ Based on that, we're measuring the following information:
 | Precision @ K | **Trust:** when our model says "Match", is it right? | Of the $K$ people the model suggested, how many are actually "High Score" matches? | $\frac{\text{Count of model suggestions in high score edgelist}}{K}$ – averaged across all users |
 | Recall @ Top 5 | **Coverage:** Is our model finding needles in the haystack? | How many of the "Gold Standard" matches did the model find? | $\frac{\text{Count of model suggestions that appear in the top 5 pct}}{\text{Total number of items in the top 5 pct}}$ |
 | Mean Rank | **Discovery:** Are the best matches consistently at the top of the list? | On average, how far down is the true match in the model's output? (Lower is better) | For every "True" match, find its rank in the model's sorted list (1st, 10th, 500th). Average these ranks. |
-| Omission Count | **Anti-discovery:** How many good matches did we fail to discover? | The raw count of true Top-K matches that the model failed to identify | $K - (\text{Count of model suggestions found in top\_k\_edgelist})$.|
+| Omission Count | **Anti-discovery:** How many good matches did we fail to discover? | The raw count of true Top-K matches that the model failed to identify | $K - (\text{Count of model suggestions found in top k edgelist})$.|
   
