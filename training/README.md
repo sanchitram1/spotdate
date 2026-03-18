@@ -43,17 +43,17 @@ class SliceConfig:
   delimiter: str = ";" 
 ```
 
-> [!warning] > slice.py **must** be run first in the pipeline. We absolutely
-should not train on > future data, since we're using that to determine ground
-truth.
+> [!WARNING] 
+> slice.py **must** be run first in the pipeline. We absolutely should not train on 
+> future data, since we're using that to determine ground truth.
 
 - `labeling/`: contains different approaches for turning the
   future_listening_history
 into **pairwise labels** indicating which users look like good matches. The goal
 is to use these labels as a signal for training the matching model.
 
-> [!warning] > The labeling process **must** be performed on the
-`future_listening_history` data
+> [!WARNING] 
+> The labeling process **must** be performed on the `future_listening_history` data
 
 - `feature_extraction/`: transforms the raw listening logs & track metadata into
 **user-level features**.
@@ -62,8 +62,9 @@ is to use these labels as a signal for training the matching model.
   we
 consider.
 
-> [!warning] > The models and feature_extraction processes **must** be run on
-the > `past_listening_history` data
+> [!WARNING] 
+> The models and feature_extraction processes **must** be run on the 
+> `past_listening_history` data
 
 - `evaluation.py`: since we consider two unsupervised models and one supervised
   model,
