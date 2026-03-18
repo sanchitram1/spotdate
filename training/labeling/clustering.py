@@ -39,7 +39,7 @@ class ClusterConfig:
 @dataclass(frozen=True)
 class AggregateConfig:
     top_k: int = 10
-    cutoff_score: float = 0.85
+    cutoff_score: float = 0.99
 
 
 def parse_args() -> argparse.Namespace:
