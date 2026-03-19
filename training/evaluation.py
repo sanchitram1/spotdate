@@ -1,316 +1,170 @@
-"""Top-K evaluation: compare predicted neighbors (from a similarity matrix)
-against ground-truth neighbors (from an edgelist) using per-user Jaccard."""
-
-from __future__ import annotations
-
-from typing import TYPE_CHECKING, Iterable
+from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
+from sklearn.metrics.pairwise import cosine_similarity
 
-if TYPE_CHECKING:
-    import matplotlib.axes
+from utils.logger import get_logger
 
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
+logger = get_logger("evaluation")
 
 
-def any_overlap_jaccard_threshold(k: int) -> float:
-    """Minimum Jaccard when both sets are size *k* and share ≥1 element.
+@dataclass
+class RecommenderConfig:
+    k: int = 20
+    high_score: float = 0.99
+    top_percentile: float = 0.95  # top 5 percent of matches
 
-    ``1 / (2*k - 1)``
+
+config = RecommenderConfig()
+
+
+class RecommenderEvaluator:
     """
-    return 1.0 / (2 * k - 1)
-
-
-# ---------------------------------------------------------------------------
-# Similarity matrix utilities
-# ---------------------------------------------------------------------------
-
-
-def normalize_similarity(
-    similarity_df: pd.DataFrame,
-) -> tuple[np.ndarray, np.ndarray]:
-    """Validate a square similarity DataFrame and return (ids, S).
-
-    * Checks that index == columns (same order).
-    * Sets the diagonal to ``-inf`` so a user is never their own neighbor.
-
-    Returns
-    -------
-    ids : np.ndarray
-        User ids taken from ``similarity_df.index``.
-    S : np.ndarray
-        2-D float array with diagonal set to ``-inf``.
+    Stateful evaluator for recommendation models.
+    Computes similarities once to save memory and compute time.
     """
-    if similarity_df.shape[0] != similarity_df.shape[1]:
-        raise ValueError(
-            f"similarity_df must be square, got shape {similarity_df.shape}"
-        )
-    if not similarity_df.index.equals(similarity_df.columns):
-        raise ValueError("similarity_df.index and .columns must be identical")
 
-    ids = similarity_df.index.to_numpy()
-    S = similarity_df.to_numpy(dtype=float, copy=True)
-    np.fill_diagonal(S, -np.inf)
-    return ids, S
+    def __init__(
+        self,
+        embeddings: np.ndarray,
+        user_ids: np.ndarray,
+        full_edgelist: pd.DataFrame,
+    ):
+        self.k = config.k
+        self.user_ids = np.array(user_ids)
+        self.full_edgelist = full_edgelist
 
+        logger.debug("1/2: Computing similarity matrix and model predictions...")
+        self.model_predictions = self._get_model_predictions(embeddings)
 
-# ---------------------------------------------------------------------------
-# Top-K extraction
-# ---------------------------------------------------------------------------
-
-
-def topk_from_similarity(
-    similarity_df: pd.DataFrame,
-    *,
-    k: int,
-) -> dict:
-    """Return top-*k* predicted neighbors per user from a similarity matrix.
-
-    Uses ``np.argpartition`` for O(n·K) extraction per row.
-
-    Returns
-    -------
-    dict[user_id, np.ndarray[user_id]]
-    """
-    ids, S = normalize_similarity(similarity_df)
-    n = len(ids)
-    actual_k = min(k, n - 1)
-    if actual_k <= 0:
-        return {uid: np.array([], dtype=ids.dtype) for uid in ids}
-
-    result: dict = {}
-    for i in range(n):
-        row = S[i]
-        part_idx = np.argpartition(-row, kth=actual_k - 1)[:actual_k]
-        part_idx = part_idx[np.argsort(-row[part_idx])]
-        result[ids[i]] = ids[part_idx]
-    return result
-
-
-def topk_from_edgelist(
-    edgelist: pd.DataFrame,
-    *,
-    universe: pd.Index,
-    k: int,
-    anchor_col: str = "user_id_anchor",
-    other_col: str = "user_id_positive",
-    score_col: str | None = "match_score",
-    undirected: bool = True,
-) -> dict:
-    """Return top-*k* ground-truth neighbors per user from an edgelist.
-
-    Parameters
-    ----------
-    edgelist : pd.DataFrame
-        Must contain ``anchor_col`` and ``other_col`` (and optionally
-        ``score_col``).
-    universe : pd.Index
-        Only edges with **both** endpoints in *universe* are kept.
-    k : int
-        Maximum neighbors per user.
-    score_col : str | None
-        Column used to rank neighbors (descending).  When ``None``, raw
-        frequency (count of edges) is used instead.
-    undirected : bool
-        If ``True`` each edge contributes to both endpoints' neighbor lists.
-    """
-    cols = [anchor_col, other_col] + ([score_col] if score_col else [])
-    df = edgelist.reset_index()[cols].copy()
-
-    # Universe restriction – both endpoints must be present.
-    mask = df[anchor_col].isin(universe) & df[other_col].isin(universe)
-    df = df.loc[mask]
-
-    # Standardize column names for internal processing.
-    rename = {anchor_col: "_anchor", other_col: "_other"}
-    if score_col:
-        rename[score_col] = "_score"
-    df = df.rename(columns=rename)
-
-    if undirected:
-        swapped = df.rename(columns={"_anchor": "_other", "_other": "_anchor"})
-        df = pd.concat([df, swapped], ignore_index=True)
-
-    if score_col:
-        # When a pair appears multiple times, take the max score.
-        df = df.groupby(["_anchor", "_other"], sort=False)["_score"].max().reset_index()
-        df = df.sort_values(["_anchor", "_score"], ascending=[True, False])
-    else:
-        # Use frequency as the ranking signal.
-        df = (
-            df.groupby(["_anchor", "_other"], sort=False)
-            .size()
-            .reset_index(name="_score")
-        )
-        df = df.sort_values(["_anchor", "_score"], ascending=[True, False])
-
-    topk = df.groupby("_anchor").head(k)
-
-    result: dict = {}
-    for anchor, grp in topk.groupby("_anchor"):
-        result[anchor] = grp["_other"].to_numpy()
-
-    return result
-
-
-# ---------------------------------------------------------------------------
-# Jaccard
-# ---------------------------------------------------------------------------
-
-
-def jaccard_topk(
-    pred: dict,
-    truth: dict,
-    *,
-    k: int,
-    min_truth_neighbors: int = 1,
-) -> pd.DataFrame:
-    """Per-user Jaccard between predicted and ground-truth neighbor sets.
-
-    Only users present in *both* ``pred`` and ``truth`` (with at least
-    ``min_truth_neighbors`` truth neighbors) are included.
-
-    Returns a DataFrame with columns:
-        user_id, pred_k, truth_k, intersection, union, jaccard, has_any_overlap
-    """
-    rows: list[dict] = []
-    common_users = set(pred) & set(truth)
-    for uid in common_users:
-        p = set(pred[uid])
-        t = set(truth[uid])
-        if len(t) < min_truth_neighbors:
-            continue
-        inter = len(p & t)
-        union = len(p | t)
-        jacc = inter / union if union else 0.0
-        rows.append(
-            {
-                "user_id": uid,
-                "pred_k": len(p),
-                "truth_k": len(t),
-                "intersection": inter,
-                "union": union,
-                "jaccard": jacc,
-                "has_any_overlap": inter > 0,
-            }
-        )
-    return pd.DataFrame(rows)
-
-
-# ---------------------------------------------------------------------------
-# Summary
-# ---------------------------------------------------------------------------
-
-
-def summarize_jaccard(
-    df: pd.DataFrame,
-    *,
-    thresholds: Iterable[float] = (),
-) -> dict:
-    """High-signal summary statistics from the per-user Jaccard DataFrame."""
-    n = len(df)
-    if n == 0:
-        return {"n_users": 0}
-
-    jaccard = df["jaccard"]
-    summary: dict = {
-        "n_users": n,
-        "median": float(jaccard.median()),
-        "mean": float(jaccard.mean()),
-        "p75": float(jaccard.quantile(0.75)),
-        "p90": float(jaccard.quantile(0.90)),
-        "pct_any_overlap": float(df["has_any_overlap"].mean()),
-    }
-    for t in thresholds:
-        summary[f"pct_above_{t:.4f}"] = float((jaccard >= t).mean())
-    return summary
-
-
-# ---------------------------------------------------------------------------
-# Plotting
-# ---------------------------------------------------------------------------
-
-
-def plot_jaccard_distribution(
-    df: pd.DataFrame,
-    *,
-    bins: int = 50,
-    thresholds: Iterable[float] = (),
-    ax: matplotlib.axes.Axes | None = None,
-) -> matplotlib.axes.Axes:
-    """Histogram of per-user Jaccard with optional threshold lines."""
-    import matplotlib.pyplot as plt
-
-    if ax is None:
-        _, ax = plt.subplots()
-
-    ax.hist(df["jaccard"], bins=bins, edgecolor="black", alpha=0.7)
-    for t in thresholds:
-        ax.axvline(t, color="red", linestyle="--", label=f"threshold={t:.4f}")
-    ax.set_xlabel("Jaccard")
-    ax.set_ylabel("# users")
-    ax.set_title("Per-user Jaccard distribution")
-    if thresholds:
-        ax.legend()
-    return ax
-
-
-# ---------------------------------------------------------------------------
-# Convenience wrapper
-# ---------------------------------------------------------------------------
-
-
-def evaluate_topk(
-    similarity_df: pd.DataFrame,
-    edgelist: pd.DataFrame,
-    *,
-    k: int = 10,
-    undirected: bool = True,
-    anchor_col: str = "user_id_anchor",
-    other_col: str = "user_id_positive",
-    score_col: str | None = "match_score",
-    thresholds: tuple[float, ...] | None = None,
-    min_truth_neighbors: int = 1,
-) -> tuple[pd.DataFrame, dict]:
-    """End-to-end Top-K evaluation.
-
-    Returns
-    -------
-    per_user : pd.DataFrame
-        Per-user Jaccard metrics.
-    summary : dict
-        Aggregate statistics including threshold coverage.
-    """
-    if thresholds is None:
-        t0 = any_overlap_jaccard_threshold(k)
-        thresholds = (t0, 0.1, 0.2, 0.3)
-
-    universe = similarity_df.index
-
-    pred = topk_from_similarity(similarity_df, k=k)
-    truth = topk_from_edgelist(
-        edgelist,
-        universe=universe,
-        k=k,
-        anchor_col=anchor_col,
-        other_col=other_col,
-        score_col=score_col,
-        undirected=undirected,
-    )
-
-    missing = set(pred) - set(truth)
-    if missing:
-        print(
-            f"WARNING: {len(missing)} user(s) in similarity_df have no ground-truth edges "
-            f"in the edgelist (after universe filtering). Examples: "
-            f"{sorted(missing)[:5]}"
+        logger.debug("2/2: Pre-building Ground Truth Maps...")
+        self.gt_top_k = self._build_gt_top_k()
+        self.gt_high_score = self._build_gt_high_score(threshold=config.high_score)
+        self.gt_top_5_percent = self._build_gt_percentile(
+            percentile=config.top_percentile
         )
 
-    per_user = jaccard_topk(pred, truth, k=k, min_truth_neighbors=min_truth_neighbors)
-    summary = summarize_jaccard(per_user, thresholds=thresholds)
+        logger.info("Evaluator ready!")
 
-    return per_user, summary
+    def _get_model_predictions(self, embeddings) -> dict[str, set]:
+        """Calculates cosine similarity and extracts Top K matches for each user."""
+        sim_matrix = cosine_similarity(embeddings)
+
+        # set the diagonal to negative infinity so a user is never matched with itself
+        np.fill_diagonal(sim_matrix, -np.inf)
+
+        preds = {}
+        for idx, user_id in enumerate(self.user_ids):
+            user_sims = sim_matrix[idx]
+
+            # grab indices of top K
+            top_indices = np.argpartition(user_sims, -self.k)[-self.k :]
+
+            # convert indices to user IDs and store as a set
+            preds[user_id] = set(self.user_ids[top_indices])
+
+        return preds
+
+    # TODO: this is kind of repeated. I should save these and I/O read them once?
+    # or build in notebook
+    def _build_gt_top_k(self) -> dict[str, set]:
+        """Builds a map of the actual top K matches per user based on edgelist score."""
+        sorted_df = self.full_edgelist.sort_values(
+            ["user_anchor", "similarity_score"], ascending=[True, False]
+        )
+        top_k_df = sorted_df.groupby("user_anchor").head(self.k)
+        return top_k_df.groupby("user_anchor")["user_match"].apply(set).to_dict()
+
+    def _build_gt_high_score(self, threshold: float) -> dict[str, set]:
+        """Builds a map of matches that score above a strict threshold."""
+        high_score_df = self.full_edgelist[
+            self.full_edgelist["similarity_score"] >= threshold
+        ]
+        return high_score_df.groupby("user_anchor")["user_match"].apply(set).to_dict()
+
+    def _build_gt_percentile(self, percentile: float) -> dict[str, set]:
+        """Builds a map of matches that fall into the top X% FOR THAT SPECIFIC USER."""
+        # Calculate the threshold dynamically for each user
+        thresholds = self.full_edgelist.groupby("user_anchor")[
+            "similarity_score"
+        ].transform(lambda x: x.quantile(percentile))
+        perc_df = self.full_edgelist[
+            self.full_edgelist["similarity_score"] >= thresholds
+        ]
+        return perc_df.groupby("user_anchor")["user_match"].apply(set).to_dict()
+
+    # METRICS
+
+    def hit_rate_at_k(self) -> float:
+        """Does at least 1 prediction appear in the true Top K?"""
+        hits = 0
+        valid_users = 0
+
+        for user, preds in self.model_predictions.items():
+            true_top_k = self.gt_top_k.get(user)
+            if not true_top_k:
+                continue
+
+            # If the intersection is not empty, it's a hit!
+            if preds & true_top_k:
+                hits += 1
+            valid_users += 1
+
+        return hits / valid_users if valid_users > 0 else 0.0
+
+    def precision_at_high_score(self) -> float:
+        """Precision: Out of the K items we suggested, how many were > {config.high_score} score?"""
+        total_precision = 0
+        valid_users = 0
+
+        for user, preds in self.model_predictions.items():
+            true_high_scores = self.gt_high_score.get(user, set())
+
+            # Intersection size / K
+            user_precision = len(preds & true_high_scores) / self.k
+            total_precision += user_precision
+            valid_users += 1
+
+        return total_precision / valid_users if valid_users > 0 else 0.0
+
+    def recall_at_top_percentile(self) -> float:
+        """Recall @ Top 5%: How many of the user's elite 5% matches did we find?"""
+        total_recall = 0
+        valid_users = 0
+
+        for user, preds in self.model_predictions.items():
+            true_top_perc = self.gt_top_5_percent.get(user)
+            if not true_top_perc:
+                continue
+
+            user_recall = len(preds & true_top_perc) / len(true_top_perc)
+            total_recall += user_recall
+            valid_users += 1
+
+        return total_recall / valid_users if valid_users > 0 else 0.0
+
+    def omission_count(self) -> float:
+        """Omission Count: Average number of 'misses' per user (K - successful matches in Top K)."""
+        total_omissions = 0
+        valid_users = 0
+
+        for user, preds in self.model_predictions.items():
+            true_top_k = self.gt_top_k.get(user)
+            if not true_top_k:
+                continue
+
+            successful_matches = len(preds & true_top_k)
+            total_omissions += self.k - successful_matches
+            valid_users += 1
+
+        return total_omissions / valid_users if valid_users > 0 else 0.0
+
+    def get_all_metrics(self) -> dict[str, float]:
+        """Convenience method to run everything at once."""
+        return {
+            "hit_rate_at_k": self.hit_rate_at_k(),
+            "precision_at_high_score": self.precision_at_high_score(),
+            "recall_at_top_5_percent": self.recall_at_top_percentile(),
+            "omission_count": self.omission_count(),
+        }
