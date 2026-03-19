@@ -102,11 +102,9 @@ We'll refer to this data as variations of `edgelist`:
 
 Based on that, we're measuring the following information:
 
-| Metric | Goal | Description | How to calculate? | 
-| ------ | ---- | ----------- | ----------------- |
-| Hit Rate @ K | **Utility:** are users going to get jaded with our suggestions? | Does the model find any of the "True" matches in its Top-K suggestions? | For each user, if at least one of the model's Top-K suggestions is in the ground truth `top_k_edgelist`, it's a "Hit". Average this across all users. |
-| Precision @ K | **Trust:** when our model says "Match", is it right? | Of the $K$ people the model suggested, how many are actually "High Score" matches? | $\frac{\text{Count of model suggestions in high score edgelist}}{K}$ – averaged across all users |
-| Recall @ Top 5 | **Coverage:** Is our model finding needles in the haystack? | How many of the "Gold Standard" matches did the model find? | $\frac{\text{Count of model suggestions that appear in the top 5 pct}}{\text{Total number of items in the top 5 pct}}$ |
-| Mean Rank | **Discovery:** Are the best matches consistently at the top of the list? | On average, how far down is the true match in the model's output? (Lower is better) | For every "True" match, find its rank in the model's sorted list (1st, 10th, 500th). Average these ranks. |
-| Omission Count | **Anti-discovery:** How many good matches did we fail to discover? | The raw count of true Top-K matches that the model failed to identify | $K - (\text{Count of model suggestions found in top k edgelist})$.|
-  
+| Metric | Goal | Description |
+| :--- | :--- | :--- | 
+| **Hit Rate @ K** | **Utility:** Are users going to get jaded with our suggestions? | Measures if the model provides at least one "correct" recommendation in the Top-K. | 
+| **Precision @ High Score** | **Trust:** When our model says "Match", is it right? | Measures the "density" of high-quality (Score > 0.99) matches within our Top-K suggestions. | 
+| **Recall @ Top 5%** | **Coverage:** Is our model finding needles in the haystack? | Measures the model's ability to find "Elite" matches (Top 5th percentile of similarity) for a specific user. |
+| **Omission Count** | **Anti-discovery:** How many "slots" are we wasting? | The raw count of true Top-K matches that the model failed to identify within its own Top-K suggestions. | 

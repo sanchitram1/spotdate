@@ -12,7 +12,7 @@ logger = get_logger("evaluation")
 @dataclass
 class RecommenderConfig:
     k: int = 20
-    high_score: float = 0.99
+    high_score: float = 0.90
     top_percentile: float = 0.95  # top 5 percent of matches
 
 
@@ -45,7 +45,7 @@ class RecommenderEvaluator:
             percentile=config.top_percentile
         )
 
-        logger.info("Evaluator ready!")
+        logger.debug("Evaluator ready!")
 
     def _get_model_predictions(self, embeddings) -> dict[str, set]:
         """Calculates cosine similarity and extracts Top K matches for each user."""
@@ -160,6 +160,27 @@ class RecommenderEvaluator:
 
         return total_omissions / valid_users if valid_users > 0 else 0.0
 
+    def average_ground_truth_score(self) -> float:
+        """
+        Calculates the mean similarity score of all Top-K model recommendations
+        that exist in the full edgelist.
+        """
+        all_scores = []
+
+        # We need a quick lookup for ALL scores: {(anchor, match): score}
+        # This is faster than filtering the DF in a loop
+        score_lookup = self.full_edgelist.set_index(["user_anchor", "user_match"])[
+            "similarity_score"
+        ].to_dict()
+
+        for anchor, preds in self.model_predictions.items():
+            for match in preds:
+                score = score_lookup.get((anchor, match))
+                if score is not None:
+                    all_scores.append(score)
+
+        return np.mean(all_scores) if all_scores else 0.0
+
     def get_all_metrics(self) -> dict[str, float]:
         """Convenience method to run everything at once."""
         return {
@@ -167,4 +188,5 @@ class RecommenderEvaluator:
             "precision_at_high_score": self.precision_at_high_score(),
             "recall_at_top_5_percent": self.recall_at_top_percentile(),
             "omission_count": self.omission_count(),
+            "avg_score": self.average_ground_truth_score(),
         }
