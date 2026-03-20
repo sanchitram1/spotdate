@@ -1,12 +1,20 @@
-## Feature extraction
+# Feature extraction
 
 This module is responsible for **turning raw listening history + track metadata
 into a clean, user-level feature table** that downstream models can train on.
 
-### Getting set up / running locally
+## Getting Setup
 
-Teammates should use the orchestrator to smoke-test their feature group
-end-to-end.
+### Pre-requisites:
+
+- You need a data directory at the root, with the file `past_listening_history.csv`. This
+  file contains user level listening history, for periods before our cutoff date.
+  data, merged with the track level metadata
+- [uv](https://astral.sh/uv) for dependency management / running python files
+
+### Running locally
+
+Use the orchestrator to smoke-test a feature group end-to-end.
 
 - **Required flags**: you must provide **both** `--input` and `--output`.
 - **Run only one feature group and print the result**:

@@ -111,3 +111,7 @@ Thumbs.db
 # data stuff
 data/
 fetched_data/
+
+# models?
+*.keras
+manifest.csv

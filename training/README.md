@@ -1,9 +1,9 @@
-## Training
+# Training
 
 This folder contains all code and notebooks related to **learning a neural model
 that can suggest promising dating matches based on Spotify listening behavior**.
 
-### Problem framing
+## Problem
 
 We have:
 - **Listening history**: user–track interactions over time.
@@ -15,74 +15,96 @@ whose musical journeys are compatible. The core challenge is that the data is
 
 Our current working thesis is:
 - **Good matches ≈ users who share a similar listening trajectory over time**
-  (what they
-listen to, how that evolves, and in what contexts).
+(what they listen to, how that evolves, and in what contexts).
 
 To operationalize this, the training pipeline is split into two major steps:
-1. **Labeling** – generate synthetic/heuristic labels that approximate "good
-   match"
-pairs.
-2. **Feature extraction** – compute user-level features that should help a model
+1. **Slice:** split the data into two sets:
+  1. past_listening_history: data that we use to train an ML model
+  2. future_listening_history: data we use to measure alignment
+2. **Labeling:** for future_listening_history, generate synthetic/heuristic
+   labels that
+approximate "good match" pairs.
+3. **Feature extraction:** compute user-level features that should help a model
 recognize those good matches.
 
 Downstream, these labels and features will be used to train/validate ranking or
 retrieval models that, given a user, surface candidate matches.
 
-### Folder structure
+## Folder Structure
 
-- `labeling/`
-  - **Goal**: turn raw listening histories into **pairwise labels** indicating
-    which
-users look like good matches.
-  - Main script: `label_generation.py`, which:
-    - Splits interaction data into **past** and **future** windows.
-    - Uses only the **future** window to define heuristic rules for when two
-      users
-"match" (based on shared trajectories).
-    - Outputs an **edgelist CSV** of candidate pairs with scores:
-      - Columns: `anchor`, `positive`, `match_score`.
-      - Each anchor has the **top-k (currently 7)** positives according to the
-        heuristic
-score.
-  - These labels are the **supervision signal** for training matching models.
+- `slice.py`: the critical first step that we need to run to split the data into
+  past
+and future subsets. Below is the config object on which we split the data
 
-- `feature_extraction/`
-  - **Goal**: transform raw listening logs + track metadata into a **user-level
-    feature
-matrix**.
-  - Main script: `main.py`, which:
-    - Takes listening history (and supporting metadata) as input.
-    - Invokes a set of **targeted feature modules** (temporal, genre, audio
-      features,
-album, artist).
-    - Writes out `features_df.csv`, where:
-      - Each row corresponds to a **user**.
-      - Each column is a **feature** describing that user's listening behavior
-        or taste.
-  - These features are the **input space** for models trained on the labels from
-`labeling/`.
+```python 
+class SliceConfig: 
+  cutoff_timestamp: str = "2012-03-26 13:30:08+00:00"
+  timestamp_col: str = "listen_timestamp" 
+  delimiter: str = ";" 
+```
 
-### High-level model structure
+> [!WARNING] 
+> slice.py **must** be run first in the pipeline. We absolutely should not train on 
+> future data, since we're using that to determine ground truth.
 
-Conceptually, our matching system is built around:
-- **Inputs**
-  - User-level feature vectors from `feature_extraction` (e.g., temporal
-    dynamics, genre
-and artist preferences, audio embedding summaries).
-  - Pairwise labels from `labeling` indicating which user–user pairs are good
-    matches.
-- **Model objective**
-  - Learn a representation space (e.g., via a neural encoder) where:
-    - **Positive pairs** (heuristically good matches) are **close**.
-    - Non-matching or random pairs are **far apart**.
-  - This can be instantiated as contrastive learning, metric learning, or
-retrieval/ranking objectives.
-- **Serving**
-  - Given a user, encode them into the learned space and retrieve nearest
-    neighbors as
-**candidate dating matches**.
+- `labeling/`: contains different approaches for turning the
+  future_listening_history
+into **pairwise labels** indicating which users look like good matches. The goal
+is to use these labels as a signal for training the matching model.
 
-This folder does **not** fix one specific neural architecture yet; instead, it
-defines the **data contracts and abstractions** (labels and features) that any
-downstream model must respect.
+> [!WARNING] 
+> The labeling process **must** be performed on the `future_listening_history` data
 
+- `feature_extraction/`: transforms the raw listening logs & track metadata into
+**user-level features**.
+
+- `models/`: the directory containing the training notebooks for each model that
+  we
+consider.
+
+> [!WARNING] 
+> The models and feature_extraction processes **must** be run on the 
+> `past_listening_history` data
+
+- `evaluation.py`: since we consider two unsupervised models and one supervised
+  model,
+we need a consistent approach to measure the quality of each of our models.
+
+## Module-specific information
+
+- **Feature Extraction:**
+  [feature extraction's README](./feature_extraction/README.md)
+- **Labeling:** [labeling README](./labeling/README.md)
+- **Models:** [models README](./models/README.md)
+
+### evaluation.py
+
+We assume that the outputs generated by our labeling methodology is the ground
+truth in terms of successful matches for each user. It outputs the following
+table, **for all different user combinations** ...it's a pretty large table,
+scales n*(n-1) for n users
+
+```
+user_anchor       user_match        similarity_score
+----------------------------------------------------
+0000              1111              0.9978
+0000              2222              0.7654
+0000              3333              0.3641
+0001              2222              0.9999
+0001              4444              0.9453
+0001              6666              0.8901
+```
+
+We'll refer to this data as variations of `edgelist`:
+- `top_k_edgelist`: for each user, select the top 10 matches
+- `high_score_edgelist`: select all matches above 0.99
+- `top_5%_edgelist`: for each user, select the top 5 percentile of matches
+
+Based on that, we're measuring the following information:
+
+| Metric | Goal | Description |
+| :--- | :--- | :--- | 
+| **Hit Rate @ K** | **Utility:** Are users going to get jaded with our suggestions? | Measures if the model provides at least one "correct" recommendation in the Top-K. | 
+| **Precision @ High Score** | **Trust:** When our model says "Match", is it right? | Measures the "density" of high-quality (Score > 0.99) matches within our Top-K suggestions. | 
+| **Recall @ Top 5%** | **Coverage:** Is our model finding needles in the haystack? | Measures the model's ability to find "Elite" matches (Top 5th percentile of similarity) for a specific user. |
+| **Omission Count** | **Anti-discovery:** How many "slots" are we wasting? | The raw count of true Top-K matches that the model failed to identify within its own Top-K suggestions. | 

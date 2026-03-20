@@ -175,14 +175,12 @@ def _build_loyalty_features(df: pd.DataFrame) -> pd.DataFrame:
         group["is_early"] = (group["time_delta"] <= threshold).astype(int)
         return group
 
-    logger.debug("***** DF Loyal Columns Pre Join: %s", df_loyal.columns)
     df_loyal = (
         df_loyal.groupby("track_name", group_keys=False)
         .apply(mark_early)
         .reset_index()
         .rename(columns={"index": "track_name"})
     )
-    logger.debug("***** DF Loyal Columns Post Join: %s", df_loyal.columns)
 
     user_profile = df_loyal.groupby("user_id").agg(
         loyal_track_count=("track_name", "nunique"),
