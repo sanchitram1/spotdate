@@ -110,7 +110,11 @@ def main() -> None:
 
     logger.info("Reading listening history from %s", input_path)
     listening_history = pd.read_csv(input_path, delimiter=config.delimiter)
-    logger.info("Loaded %d rows, %d users", len(listening_history), listening_history["user_id"].nunique())
+    logger.info(
+        "Loaded %d rows, %d users",
+        len(listening_history),
+        listening_history["user_id"].nunique(),
+    )
 
     past_df, future_df = slice_listening_history(listening_history, config=config)
 
