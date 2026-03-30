@@ -115,3 +115,4 @@ fetched_data/
 # models?
 *.keras
 manifest.csv
+*.pt
