@@ -38,7 +38,9 @@ def _safe_label(value: Any, fallback: str = "Unknown") -> str:
     return text if text else fallback
 
 
-def _pick_group_rows(group_rankings: pd.DataFrame) -> tuple[pd.Series | None, pd.Series | None]:
+def _pick_group_rows(
+    group_rankings: pd.DataFrame,
+) -> tuple[pd.Series | None, pd.Series | None]:
     if group_rankings.empty:
         return None, None
     return group_rankings.iloc[0], group_rankings.iloc[-1]
@@ -111,7 +113,9 @@ def render_top_visualization(
 
     snapshot_text = f"{_format_percent(context.predicted_similarity)} model confidence"
     if context.future_alignment_score is not None:
-        snapshot_text += f" · {_format_percent(context.future_alignment_score)} future alignment"
+        snapshot_text += (
+            f" · {_format_percent(context.future_alignment_score)} future alignment"
+        )
 
     st.markdown("## Top Visualization")
     st.markdown(

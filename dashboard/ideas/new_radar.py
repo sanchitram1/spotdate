@@ -37,9 +37,19 @@ class NewRadarIdea(ImplementationIdea):
             if not cols:
                 continue
 
-            vec1 = context.selected_profile[cols].fillna(0).values.astype(float).reshape(1, -1)
-            vec2 = context.match_profile[cols].fillna(0).values.astype(float).reshape(1, -1)
-            
+            vec1 = (
+                context.selected_profile[cols]
+                .fillna(0)
+                .values.astype(float)
+                .reshape(1, -1)
+            )
+            vec2 = (
+                context.match_profile[cols]
+                .fillna(0)
+                .values.astype(float)
+                .reshape(1, -1)
+            )
+
             if np.all(vec1 == 0) and np.all(vec2 == 0):
                 sim = 1.0
             elif np.all(vec1 == 0) or np.all(vec2 == 0):
@@ -48,20 +58,26 @@ class NewRadarIdea(ImplementationIdea):
                 sim = cosine_similarity(vec1, vec2)[0, 0]
 
             # We still want the ranker's base scores to draw the radar
-            row = context.group_rankings[context.group_rankings["group_key"] == group.key].iloc[0]
+            row = context.group_rankings[
+                context.group_rankings["group_key"] == group.key
+            ].iloc[0]
 
-            group_similarities.append({
-                "group_key": group.key,
-                "label": group.label,
-                "description": group.description,
-                "cosine_sim": float(sim),
-                "selected_score": row["selected_score"],
-                "match_score": row["match_score"],
-            })
+            group_similarities.append(
+                {
+                    "group_key": group.key,
+                    "label": group.label,
+                    "description": group.description,
+                    "cosine_sim": float(sim),
+                    "selected_score": row["selected_score"],
+                    "match_score": row["match_score"],
+                }
+            )
 
         sim_df = pd.DataFrame(group_similarities)
         # Sort by cosine similarity descending
-        sim_df = sim_df.sort_values("cosine_sim", ascending=False).reset_index(drop=True)
+        sim_df = sim_df.sort_values("cosine_sim", ascending=False).reset_index(
+            drop=True
+        )
 
         n = len(sim_df)
         if n >= 6:
@@ -72,7 +88,7 @@ class NewRadarIdea(ImplementationIdea):
             least["similarity_category"] = "Least Similar"
 
             mid_idx = n // 2 - 1
-            mid = sim_df.iloc[mid_idx:mid_idx + 2].copy()
+            mid = sim_df.iloc[mid_idx : mid_idx + 2].copy()
             mid["similarity_category"] = "Mid Similar"
 
             axes = pd.concat([top, mid, least]).reset_index(drop=True)

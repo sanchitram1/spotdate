@@ -57,7 +57,8 @@ def select_best_model_spec(
             )
 
     if not candidates:
-        raise FileNotFoundError(f"No {model_key} artifacts found with suffix {file_suffix}")
+        raise FileNotFoundError(
+            f"No {model_key} artifacts found with suffix {file_suffix}"
+        )
 
     return max(candidates, key=lambda spec: spec.selection_value)
-

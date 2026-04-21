@@ -8,12 +8,14 @@ from dashboard.ideas.quirks import QuirksIdea
 from dashboard.ideas.flip_card import FlipCardIdea
 
 
-def get_implementation_ideas() -> tuple[FlowIdea, NewRadarIdea, MatchDNAIdea, OppositesIdea, QuirksIdea, FlipCardIdea]:
+def get_implementation_ideas() -> tuple[
+    FlowIdea, NewRadarIdea, MatchDNAIdea, OppositesIdea, QuirksIdea, FlipCardIdea
+]:
     return (
-        FlowIdea(), 
-        NewRadarIdea(), 
-        MatchDNAIdea(), 
-        OppositesIdea(), 
+        FlowIdea(),
+        NewRadarIdea(),
+        MatchDNAIdea(),
+        OppositesIdea(),
         QuirksIdea(),
-        FlipCardIdea()
+        FlipCardIdea(),
     )

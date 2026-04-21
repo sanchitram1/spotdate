@@ -94,7 +94,10 @@ def build_config(repo_root: Path | None = None) -> DashboardConfig:
     fallback_artifact_root = resolved_root.parent / "spotify-app"
     artifact_root = resolved_root
 
-    if not (resolved_root / "data" / "features_df.csv").exists() and fallback_artifact_root.exists():
+    if (
+        not (resolved_root / "data" / "features_df.csv").exists()
+        and fallback_artifact_root.exists()
+    ):
         artifact_root = fallback_artifact_root
 
     paths = PathsConfig(

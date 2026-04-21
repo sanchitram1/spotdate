@@ -28,9 +28,11 @@ class FlipCardIdea(ImplementationIdea):
         "Users click the card on the front to reveal the match's core stats and alignment scores."
     )
 
-    def build(self, context: PairContext, config: DashboardConfig = CONFIG) -> FlipCardPayload:
+    def build(
+        self, context: PairContext, config: DashboardConfig = CONFIG
+    ) -> FlipCardPayload:
         top_group = context.group_rankings.iloc[0]
-        
+
         return FlipCardPayload(
             match_alias=context.match_alias,
             top_shared_label=top_group["label"],
@@ -39,7 +41,12 @@ class FlipCardIdea(ImplementationIdea):
             predicted_similarity=context.predicted_similarity,
         )
 
-    def render(self, payload: FlipCardPayload, context: PairContext, config: DashboardConfig = CONFIG) -> None:
+    def render(
+        self,
+        payload: FlipCardPayload,
+        context: PairContext,
+        config: DashboardConfig = CONFIG,
+    ) -> None:
         st.markdown(
             f"""
             <div class="idea-header">
@@ -47,11 +54,16 @@ class FlipCardIdea(ImplementationIdea):
                 <h3>{self.title}</h3>
                 <p>{self.description}</p>
             </div>
-            """, unsafe_allow_html=True
+            """,
+            unsafe_allow_html=True,
         )
 
-        future_align_text = f"{payload.future_alignment:.0%}" if payload.future_alignment is not None else "N/A"
-        
+        future_align_text = (
+            f"{payload.future_alignment:.0%}"
+            if payload.future_alignment is not None
+            else "N/A"
+        )
+
         # Unique ID for the checkbox to ensure multiple cards wouldn't conflict
         checkbox_id = f"flip-{uuid.uuid4().hex[:8]}"
 
