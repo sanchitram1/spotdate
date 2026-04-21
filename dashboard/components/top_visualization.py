@@ -2,115 +2,175 @@ from __future__ import annotations
 
 from typing import Any
 
-import plotly.graph_objects as go
+import pandas as pd
 import streamlit as st
 
 from dashboard.config import CONFIG, DashboardConfig
 from dashboard.types import PairContext
 
 
-def _format_metric(value: Any, percent: bool = False) -> str:
+def _normalize_score(value: Any) -> float | None:
     if value is None:
-        return "—"
+        return None
     try:
         numeric = float(value)
     except (TypeError, ValueError):
-        return str(value)
+        return None
 
-    if percent:
-        return f"{numeric:.1%}"
-    return f"{numeric:.3f}"
+    if numeric <= 1.0:
+        return max(0.0, min(1.0, numeric))
+    if numeric <= 100.0:
+        return max(0.0, min(1.0, numeric / 100.0))
+    return None
 
 
-def _build_embedding_figure(context: PairContext) -> go.Figure:
-    palette = {
-        "Cohort": "rgba(157, 176, 200, 0.25)",
-        "Selected": CONFIG.style.accent,
-        "Match": CONFIG.style.accent_secondary,
-    }
+def _format_percent(value: Any) -> str:
+    normalized = _normalize_score(value)
+    if normalized is None:
+        return "—"
+    return f"{normalized:.0%}"
 
-    figure = go.Figure()
 
-    for role in ("Cohort", "Selected", "Match"):
-        subset = context.projection[context.projection["role"] == role]
-        figure.add_trace(
-            go.Scatter(
-                x=subset["x"],
-                y=subset["y"],
-                mode="markers",
-                name=role,
-                marker={
-                    "size": 8 if role == "Cohort" else 16,
-                    "color": palette[role],
-                    "line": {"width": 1, "color": "#f4f7fb"}
-                    if role != "Cohort"
-                    else None,
-                },
-                text=subset["Alias"],
-                customdata=subset[["Listener Profile"]],
-                hovertemplate=(
-                    "<b>%{text}</b><br>"
-                    "Listener profile: %{customdata[0]}<br>"
-                    "Embedding X: %{x:.2f}<br>"
-                    "Embedding Y: %{y:.2f}<extra></extra>"
-                ),
-            )
-        )
+def _safe_label(value: Any, fallback: str = "Unknown") -> str:
+    if value is None:
+        return fallback
+    text = str(value).strip()
+    return text if text else fallback
 
-    figure.update_layout(
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        margin={"l": 10, "r": 10, "t": 10, "b": 10},
-        legend={"orientation": "h", "yanchor": "bottom", "y": 1.02, "x": 0.0},
-        xaxis={"title": "Embedding axis 1", "showgrid": False, "zeroline": False},
-        yaxis={"title": "Embedding axis 2", "showgrid": False, "zeroline": False},
+
+def _pick_group_rows(group_rankings: pd.DataFrame) -> tuple[pd.Series | None, pd.Series | None]:
+    if group_rankings.empty:
+        return None, None
+    return group_rankings.iloc[0], group_rankings.iloc[-1]
+
+
+def _extract_label(row: pd.Series | None) -> str:
+    if row is None:
+        return "Shared Taste"
+    for key in ("label", "group_label", "Group", "group", "key"):
+        if key in row.index:
+            return _safe_label(row[key], "Shared Taste")
+    return "Shared Taste"
+
+
+def _extract_description(row: pd.Series | None, fallback: str) -> str:
+    if row is None:
+        return fallback
+    for key in ("story_lead", "description", "story", "summary"):
+        if key in row.index and pd.notna(row[key]):
+            return str(row[key])
+    return fallback
+
+
+def _build_story_line(
+    selected_alias: str,
+    match_alias: str,
+    top_label: str,
+    bottom_label: str,
+) -> str:
+    return (
+        f"{selected_alias} and {match_alias} overlap most on {top_label.lower()}, "
+        f"while {bottom_label.lower()} adds a little contrast to the pairing."
     )
-    return figure
+
+
+def _card(title: str, value: str, body: str) -> str:
+    return f"""
+    <div class="info-card story-card">
+        <div class="card-kicker">{title}</div>
+        <h3>{value}</h3>
+        <p>{body}</p>
+    </div>
+    """
 
 
 def render_top_visualization(
-    context: PairContext, config: DashboardConfig = CONFIG
+    context: PairContext,
+    config: DashboardConfig = CONFIG,
 ) -> None:
-    metadata = context.model_spec.metadata
+    top_row, bottom_row = _pick_group_rows(context.group_rankings)
+
+    top_label = _extract_label(top_row)
+    top_description = _extract_description(
+        top_row,
+        "This is the strongest shared dimension in the match.",
+    )
+
+    bottom_label = _extract_label(bottom_row)
+    bottom_description = _extract_description(
+        bottom_row,
+        "This is where the two users feel the most different.",
+    )
+
+    story_line = _build_story_line(
+        context.selected_alias,
+        context.match_alias,
+        top_label,
+        bottom_label,
+    )
+
+    snapshot_text = f"{_format_percent(context.predicted_similarity)} model confidence"
+    if context.future_alignment_score is not None:
+        snapshot_text += f" · {_format_percent(context.future_alignment_score)} future alignment"
 
     st.markdown("## Top Visualization")
     st.markdown(
         f"""
         <div class="pair-summary">
-            <h3>{context.selected_alias} matches with {context.match_alias}</h3>
-            <p>
-                Predicted similarity: <strong>{context.predicted_similarity:.3f}</strong>
-                {" | Future alignment: <strong>" + f"{context.future_alignment_score:.3f}</strong>" if context.future_alignment_score is not None else ""}
-            </p>
+            <div class="card-kicker">Match Story</div>
+            <h3>{context.selected_alias} × {context.match_alias}</h3>
+            <p>{story_line}</p>
+            <div class="mini-stats">
+                <span>Model: {context.model_label}</span>
+            </div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    metric_columns = st.columns(4)
-    metric_columns[0].metric(
-        "Average Score",
-        _format_metric(metadata.get("avg_score")),
-    )
-    metric_columns[1].metric(
-        "Hit Rate @ K",
-        _format_metric(metadata.get("hit_rate_at_k"), percent=True),
-    )
-    metric_columns[2].metric(
-        "Precision @ High Score",
-        _format_metric(metadata.get("precision_at_high_score"), percent=True),
-    )
-    metric_columns[3].metric(
-        "Recall @ Top 5%",
-        _format_metric(metadata.get("recall_at_top_5_percent"), percent=True),
-    )
+    col1, col2, col3, col4 = st.columns(4)
 
-    plot_column, table_column = st.columns((1.6, 1.0))
+    with col1:
+        st.markdown(
+            _card(
+                "Top Shared Trait",
+                top_label,
+                top_description,
+            ),
+            unsafe_allow_html=True,
+        )
 
-    with plot_column:
-        st.plotly_chart(_build_embedding_figure(context), use_container_width=True)
+    with col2:
+        st.markdown(
+            _card(
+                "Strongest Alignment",
+                _format_percent(context.predicted_similarity),
+                f"{context.selected_alias} and {context.match_alias} are most in sync on {top_label.lower()}.",
+            ),
+            unsafe_allow_html=True,
+        )
 
-    with table_column:
+    with col3:
+        st.markdown(
+            _card(
+                "Biggest Tension",
+                bottom_label,
+                bottom_description,
+            ),
+            unsafe_allow_html=True,
+        )
+
+    with col4:
+        st.markdown(
+            _card(
+                "Match Snapshot",
+                snapshot_text,
+                "A compact read of model confidence and projected long-term alignment.",
+            ),
+            unsafe_allow_html=True,
+        )
+
+    with st.expander("Advanced model view"):
         st.markdown("### Top 5 Recommendations")
         table = context.top_matches.drop(columns=["user_id"]).copy()
         st.dataframe(
