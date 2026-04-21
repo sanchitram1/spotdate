@@ -6,6 +6,7 @@ from dashboard.ideas.match_dna import MatchDNAIdea
 from dashboard.ideas.opposites import OppositesIdea
 from dashboard.ideas.quirks import QuirksIdea
 from dashboard.ideas.flip_card import FlipCardIdea
+from dashboard.ideas.StatsIdea import StatsIdea
 
 
 def get_implementation_ideas() -> tuple[
@@ -18,4 +19,5 @@ def get_implementation_ideas() -> tuple[
         OppositesIdea(),
         QuirksIdea(),
         FlipCardIdea(),
+        StatsIdea()
     )
