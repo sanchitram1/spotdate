@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Spotdate Match Demo</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Loading State -->
+        <div id="loader" class="screen flex-center">
+            <div class="spinner"></div>
+        </div>
+
+        <!-- Main Feed -->
+        <div id="feed" class="screen hidden">
+            <!-- Navbar -->
+            <nav class="navbar">
+                <div class="logo">♫</div>
+                <div class="nav-title">Spotdate</div>
+                <div class="actions">
+                    <button class="nav-btn next-match-btn" id="nextMatchBtn" style="display: none;">↻</button>
+                </div>
+            </nav>
+
+            <main class="scroll-container" id="scrollContainer">
+                
+                <!-- Hero Section: Avatars -->
+                <section class="section hero-section">
+                    <div class="avatars-container">
+                        <div class="avatar-wrapper">
+                            <img src="assets/avatar1.png" alt="You" class="avatar">
+                            <div class="avatar-label" id="userAlias">You</div>
+                        </div>
+                        <div class="match-badge">
+                            <span id="matchScoreVal">--%</span> match
+                        </div>
+                        <div class="avatar-wrapper match-avatar">
+                            <img src="assets/avatar2.png" alt="Match" class="avatar glow">
+                            <div class="avatar-label" id="matchAlias">Match</div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Section 1: The Flip Card (Match DNA) -->
+                <section class="section">
+                    <div class="section-badge">Match Breakdown</div>
+                    <div class="flip-card" id="dnaFlipCard">
+                        <div class="flip-card-inner">
+                            <div class="flip-card-front card glass">
+                                <h2>Spotdate DNA</h2>
+                                <h1 class="gradient-text" id="frontScore">--%</h1>
+                                <p class="muted">Tap to reveal how you align</p>
+                            </div>
+                            <div class="flip-card-back card glass">
+                                <h3>Alignment</h3>
+                                <ul id="dnaList" class="dna-list">
+                                    <!-- Populated by JS -->
+                                </ul>
+                                <p class="muted tap-hint">Tap to flip back</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Section 2: Quirks (Green Flags) -->
+                <section class="section">
+                    <div class="section-title">
+                        <h2>Green Flags & Quirks</h2>
+                        <p>Where your tastes distinctly sync up</p>
+                    </div>
+                    <div class="quirks-container" id="quirksContainer">
+                        <!-- Populated by JS -->
+                    </div>
+                </section>
+
+                <!-- Section 3: The Radar -->
+                <section class="section">
+                    <div class="section-title">
+                        <h2>Match Alignment</h2>
+                        <p>Dynamic similarities across features</p>
+                    </div>
+                    <div class="card glass radar-card">
+                        <canvas id="radarChart"></canvas>
+                    </div>
+                </section>
+
+                <!-- Section 4: Opposites Attract -->
+                <section class="section">
+                    <div class="section-title">
+                        <h2>Opposites Attract</h2>
+                        <p>Where you diverge the most</p>
+                    </div>
+                    <div class="card glass">
+                        <div class="opposites-container" id="oppositesContainer">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                </section>
+
+                <div class="spacer"></div>
+            </main>
+            
+            <!-- Empty Stack State (Hidden initially) -->
+            <div id="emptyStack" class="screen flex-center hidden" style="text-align: center; background: var(--bg-color); z-index: 5;">
+                <h1 style="font-size: 4rem; margin-bottom: 20px;">👻</h1>
+                <h2 style="margin-bottom: 10px;">You're out of matches</h2>
+                <p class="muted">Check back later for new music alignments.</p>
+                <button class="action-btn pass" onclick="location.reload()" style="margin-top: 30px; margin-left: auto; margin-right: auto;">↻</button>
+            </div>
+            
+            <div class="floating-actions" id="floatingActions">
+                <button class="action-btn pass" id="passBtn">✕</button>
+                <button class="action-btn like" id="likeBtn">♥</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="app.js"></script>
+</body>
+</html>
