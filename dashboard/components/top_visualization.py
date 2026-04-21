@@ -11,7 +11,7 @@ from dashboard.types import PairContext
 
 def _format_metric(value: Any, percent: bool = False) -> str:
     if value is None:
-        return "—"
+        return "N/A"
     try:
         numeric = float(value)
     except (TypeError, ValueError):
@@ -72,15 +72,21 @@ def render_top_visualization(
     context: PairContext, config: DashboardConfig = CONFIG
 ) -> None:
     metadata = context.model_spec.metadata
+    future_alignment_text = (
+        f" | Future alignment: <strong>{context.future_alignment_score:.3f}</strong>"
+        if context.future_alignment_score is not None
+        else " | Future alignment: <strong>N/A</strong>"
+    )
 
-    st.markdown("## Top Visualization")
+    st.markdown("## Match Outcome")
     st.markdown(
         f"""
         <div class="pair-summary">
+            <p class="idea-kicker">Selected Pair</p>
             <h3>{context.selected_alias} matches with {context.match_alias}</h3>
             <p>
                 Predicted similarity: <strong>{context.predicted_similarity:.3f}</strong>
-                {" | Future alignment: <strong>" + f"{context.future_alignment_score:.3f}</strong>" if context.future_alignment_score is not None else ""}
+                {future_alignment_text}
             </p>
         </div>
         """,
@@ -111,14 +117,20 @@ def render_top_visualization(
         st.plotly_chart(_build_embedding_figure(context), use_container_width=True)
 
     with table_column:
-        st.markdown("### Top 5 Recommendations")
-        table = context.top_matches.drop(columns=["user_id"]).copy()
-        st.dataframe(
-            table,
-            use_container_width=True,
-            hide_index=True,
-            column_config={
-                "Predicted Similarity": st.column_config.NumberColumn(format="%.3f"),
-                "Future Alignment": st.column_config.NumberColumn(format="%.3f"),
-            },
-        )
+        st.markdown("### Top Recommendations")
+        if context.top_matches.empty:
+            st.info(
+                "No ranked recommendations were produced for the selected user. "
+                "This usually means the available cohort is too small or the model artifacts are incomplete."
+            )
+        else:
+            table = context.top_matches.drop(columns=["user_id"]).copy()
+            st.dataframe(
+                table,
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "Predicted Similarity": st.column_config.NumberColumn(format="%.3f"),
+                    "Future Alignment": st.column_config.NumberColumn(format="%.3f"),
+                },
+            )

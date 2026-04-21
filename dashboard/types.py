@@ -29,6 +29,23 @@ class LoadedDatasets:
 
 
 @dataclass(frozen=True)
+class ArtifactStatus:
+    features_available: bool
+    full_edgelist_available: bool
+    experiments_available: bool
+    available_model_keys: tuple[str, ...]
+    missing_paths: tuple[str, ...]
+
+    @property
+    def ready(self) -> bool:
+        return (
+            self.features_available
+            and self.full_edgelist_available
+            and self.experiments_available
+        )
+
+
+@dataclass(frozen=True)
 class DemoUserOption:
     key: str
     alias: str
@@ -68,3 +85,25 @@ class PairContext:
     top_matches: pd.DataFrame
     projection: pd.DataFrame
     group_rankings: pd.DataFrame
+
+
+@dataclass(frozen=True)
+class RuntimeSummary:
+    mode_label: str
+    feature_row_count: int
+    model_input_rows: int
+    model_input_columns: int
+    semantic_group_count: int
+    recommendation_count: int
+    top_explanation_label: str
+
+
+@dataclass(frozen=True)
+class ModelComparisonRow:
+    model_key: str
+    model_label: str
+    top_match_alias: str
+    predicted_similarity: float
+    future_alignment_score: float | None
+    top_reason: str
+    avg_score: float | None
