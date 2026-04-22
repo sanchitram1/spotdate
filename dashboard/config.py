@@ -57,6 +57,8 @@ class SemanticGroupConfig:
 class UIConfig:
     app_title: str
     app_subtitle: str
+    hero_intro_heading: str
+    hero_intro_body: str
     app_description: str
     implementation_section_title: str
     top_match_count: int
@@ -263,6 +265,13 @@ def build_config(repo_root: Path | None = None) -> DashboardConfig:
     ui = UIConfig(
         app_title="Spotdate Match Dashboard",
         app_subtitle="From listening history to explainable pair stories",
+        hero_intro_heading="Because a bad playlist is a dealbreaker.",
+        hero_intro_body=(
+            "Spotdate transforms Spotify listening data into meaningful connections. "
+            "By analyzing track-level audio features across 20,000+ users, we use an "
+            "autoencoder to map complex musical tastes and predict compatibility. "
+            "It's more than a recap. It's a data-driven way to find your perfect sonic match."
+        ),
         app_description=(
             "This dashboard turns saved model artifacts into a product-facing demo: "
             "pick one demo user, choose a model family, and inspect the pair-specific "

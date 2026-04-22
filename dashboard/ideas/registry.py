@@ -10,7 +10,13 @@ from dashboard.ideas.StatsIdea import StatsIdea
 
 
 def get_implementation_ideas() -> tuple[
-    FlowIdea, NewRadarIdea, MatchDNAIdea, OppositesIdea, QuirksIdea, FlipCardIdea
+    FlowIdea,
+    NewRadarIdea,
+    MatchDNAIdea,
+    OppositesIdea,
+    QuirksIdea,
+    FlipCardIdea,
+    StatsIdea,
 ]:
     return (
         FlowIdea(),
@@ -19,5 +25,5 @@ def get_implementation_ideas() -> tuple[
         OppositesIdea(),
         QuirksIdea(),
         FlipCardIdea(),
-        StatsIdea()
+        StatsIdea(),
     )

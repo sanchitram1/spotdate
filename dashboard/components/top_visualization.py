@@ -117,7 +117,7 @@ def render_top_visualization(
             f" · {_format_percent(context.future_alignment_score)} future alignment"
         )
 
-    st.markdown("## Top Visualization")
+    st.markdown("## Match Outcome")
     st.markdown(
         f"""
         <div class="pair-summary">
@@ -126,6 +126,8 @@ def render_top_visualization(
             <p>{story_line}</p>
             <div class="mini-stats">
                 <span>Model: {context.model_label}</span>
+                <span>Predicted similarity: {_format_percent(context.predicted_similarity)}</span>
+                <span>Future alignment: {_format_percent(context.future_alignment_score)}</span>
             </div>
         </div>
         """,
@@ -176,13 +178,21 @@ def render_top_visualization(
 
     with st.expander("Advanced model view"):
         st.markdown("### Top 5 Recommendations")
-        table = context.top_matches.drop(columns=["user_id"]).copy()
-        st.dataframe(
-            table,
-            use_container_width=True,
-            hide_index=True,
-            column_config={
-                "Predicted Similarity": st.column_config.NumberColumn(format="%.3f"),
-                "Future Alignment": st.column_config.NumberColumn(format="%.3f"),
-            },
-        )
+        if context.top_matches.empty:
+            st.info(
+                "No ranked recommendations were produced for the selected user. "
+                "This usually means the available cohort is too small or the model artifacts are incomplete."
+            )
+        else:
+            table = context.top_matches.drop(columns=["user_id"]).copy()
+            st.dataframe(
+                table,
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "Predicted Similarity": st.column_config.NumberColumn(
+                        format="%.3f"
+                    ),
+                    "Future Alignment": st.column_config.NumberColumn(format="%.3f"),
+                },
+            )

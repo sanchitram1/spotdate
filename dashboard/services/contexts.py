@@ -9,15 +9,61 @@ from sklearn.metrics.pairwise import cosine_similarity
 from dashboard.config import CONFIG, DashboardConfig
 from dashboard.models import compute_embeddings_for_model
 from dashboard.services.aliases import build_alias_catalog
-from dashboard.services.data import load_app_datasets
+from dashboard.services.data import load_app_datasets, load_demo_datasets
 from dashboard.services.scoring import build_user_group_scores, rank_pair_groups
-from dashboard.types import AliasCatalog, ModelBundle, PairContext
+from dashboard.types import AliasCatalog, ModelArtifactSpec, ModelBundle, PairContext
 
 
 @st.cache_data(show_spinner=False)
-def load_alias_catalog() -> AliasCatalog:
-    datasets = load_app_datasets()
+def load_alias_catalog(demo_mode: bool = False) -> AliasCatalog:
+    datasets = load_demo_datasets() if demo_mode else load_app_datasets()
     return build_alias_catalog(datasets.raw_features.reset_index(drop=True), CONFIG)
+
+
+def _build_demo_model_spec(
+    model_key: str, config: DashboardConfig = CONFIG
+) -> ModelArtifactSpec:
+    family_map = {family.key: family for family in config.model_families}
+    family = family_map[model_key]
+    return ModelArtifactSpec(
+        key=model_key,
+        label=f"{family.label} (Demo)",
+        manifest_path=config.paths.dashboard_dir / "README.md",
+        model_path=config.paths.dashboard_dir / "README.md",
+        selection_metric="demo_score",
+        selection_value=1.0,
+        metadata={
+            "avg_score": 0.84 if model_key == "autoencoder" else 0.88,
+            "hit_rate_at_k": 0.8 if model_key == "autoencoder" else 0.86,
+            "precision_at_high_score": 0.62 if model_key == "autoencoder" else 0.68,
+            "recall_at_top_5_percent": 0.57 if model_key == "autoencoder" else 0.64,
+            "mode": "demo",
+        },
+    )
+
+
+def _compute_demo_embeddings_for_model(
+    model_key: str,
+    model_matrix: pd.DataFrame,
+    config: DashboardConfig = CONFIG,
+) -> tuple[ModelArtifactSpec, np.ndarray]:
+    matrix = model_matrix.to_numpy(dtype=np.float32)
+    if matrix.shape[1] == 0:
+        raise ValueError("Demo model matrix is empty.")
+
+    if model_key == "autoencoder":
+        embedding_dim = min(8, matrix.shape[1])
+        embeddings = matrix[:, :embedding_dim]
+    elif model_key == "siamese":
+        embedding_dim = min(6, matrix.shape[1])
+        projection = np.linspace(
+            0.25, 1.25, num=matrix.shape[1] * embedding_dim, dtype=np.float32
+        ).reshape(matrix.shape[1], embedding_dim)
+        embeddings = np.tanh(matrix @ projection)
+    else:
+        raise KeyError(f"Unsupported model family: {model_key}")
+
+    return _build_demo_model_spec(model_key, config), np.asarray(embeddings)
 
 
 @st.cache_resource(show_spinner=False)
@@ -25,11 +71,17 @@ def load_model_bundle(
     model_key: str,
     dataset_fingerprint: str,
     input_dim: int,
+    demo_mode: bool = False,
 ) -> ModelBundle:
     del dataset_fingerprint, input_dim
 
-    datasets = load_app_datasets()
-    spec, embeddings = compute_embeddings_for_model(model_key, datasets.model_matrix)
+    datasets = load_demo_datasets() if demo_mode else load_app_datasets()
+    if demo_mode:
+        spec, embeddings = _compute_demo_embeddings_for_model(
+            model_key, datasets.model_matrix
+        )
+    else:
+        spec, embeddings = compute_embeddings_for_model(model_key, datasets.model_matrix)
 
     similarity_matrix = cosine_similarity(embeddings)
     np.fill_diagonal(similarity_matrix, -np.inf)
@@ -60,14 +112,27 @@ def get_model_bundle(model_key: str) -> ModelBundle:
     )
 
 
+def get_demo_model_bundle(model_key: str) -> ModelBundle:
+    datasets = load_demo_datasets()
+    return load_model_bundle(
+        model_key=model_key,
+        dataset_fingerprint=datasets.fingerprint,
+        input_dim=datasets.model_matrix.shape[1],
+        demo_mode=True,
+    )
+
+
 def build_pair_context(
     model_key: str,
     selected_user_id: str,
     config: DashboardConfig = CONFIG,
+    demo_mode: bool = False,
 ) -> PairContext:
-    datasets = load_app_datasets()
-    alias_catalog = load_alias_catalog()
-    model_bundle = get_model_bundle(model_key)
+    datasets = load_demo_datasets() if demo_mode else load_app_datasets()
+    alias_catalog = load_alias_catalog(demo_mode=demo_mode)
+    model_bundle = (
+        get_demo_model_bundle(model_key) if demo_mode else get_model_bundle(model_key)
+    )
     group_scores = build_user_group_scores(datasets.raw_features, config)
 
     if selected_user_id not in datasets.model_matrix.index:
