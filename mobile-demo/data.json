@@ -1,0 +1,301 @@
+{
+  "matches": [
+    {
+      "selected_user": {
+        "alias": "Midnight Mercury",
+        "blurb": "The most night-heavy listening pattern in the cohort.",
+        "listener_profile": "0"
+      },
+      "match_user": {
+        "alias": "Parade Mirror",
+        "listener_profile": "Follower/Others"
+      },
+      "predicted_similarity": 0.87326979637146,
+      "future_alignment": 0.6029706279448984,
+      "radar": {
+        "categories": [
+          "Underground Lean",
+          "Tempo",
+          "Energy",
+          "Genre Breadth",
+          "Mood",
+          "Loyalty"
+        ],
+        "selected": [
+          0.9859385783298826,
+          0.4044168391994479,
+          0.3530020703933747,
+          0.33816425120772947,
+          0.17891649413388544,
+          0.32927881297446515
+        ],
+        "match": [
+          0.9778295376121463,
+          0.4070048309178744,
+          0.32660455486542445,
+          0.2723429951690821,
+          0.883712905452036,
+          0.22972739820565904
+        ]
+      },
+      "quirks": [
+        {
+          "label": "Underground Lean",
+          "description": "How strongly the listener skews toward deeper cuts and non-mainstream tracks.",
+          "selected_score": 0.9859385783298826,
+          "match_score": 0.9778295376121463
+        },
+        {
+          "label": "Mood",
+          "description": "A composite of valence and emotional brightness in the music they choose.",
+          "selected_score": 0.17891649413388544,
+          "match_score": 0.883712905452036
+        },
+        {
+          "label": "Loyalty",
+          "description": "How much they commit to repeat listens, early favorites, and familiar comfort zones.",
+          "selected_score": 0.32927881297446515,
+          "match_score": 0.22972739820565904
+        }
+      ],
+      "opposites": [
+        {
+          "label": "Mood",
+          "description": "A composite of valence and emotional brightness in the music they choose.",
+          "selected_score": 0.17891649413388544,
+          "match_score": 0.883712905452036
+        },
+        {
+          "label": "Night Listening",
+          "description": "How much the user leans into late-night sessions and after-hours listening.",
+          "selected_score": 0.46187025534851617,
+          "match_score": 0.7230848861283644
+        },
+        {
+          "label": "Loyalty",
+          "description": "How much they commit to repeat listens, early favorites, and familiar comfort zones.",
+          "selected_score": 0.32927881297446515,
+          "match_score": 0.22972739820565904
+        }
+      ],
+      "dna": [
+        {
+          "label": "Tempo",
+          "description": "How fast-paced the pair's listening history tends to be.",
+          "selected_score": 0.4044168391994479,
+          "match_score": 0.4070048309178744
+        },
+        {
+          "label": "Underground Lean",
+          "description": "How strongly the listener skews toward deeper cuts and non-mainstream tracks.",
+          "selected_score": 0.9859385783298826,
+          "match_score": 0.9778295376121463
+        },
+        {
+          "label": "Energy",
+          "description": "How intense and high-motion the listening profile feels overall.",
+          "selected_score": 0.3530020703933747,
+          "match_score": 0.32660455486542445
+        }
+      ]
+    },
+    {
+      "selected_user": {
+        "alias": "Voltage Violet",
+        "blurb": "The highest average-energy listener in the saved feature table.",
+        "listener_profile": "Follower/Others"
+      },
+      "match_user": {
+        "alias": "Metro Canvas",
+        "listener_profile": "Follower/Others"
+      },
+      "predicted_similarity": 0.9404259920120239,
+      "future_alignment": 0.8709429703652397,
+      "radar": {
+        "categories": [
+          "Loyalty",
+          "Tempo",
+          "Underground Lean",
+          "Artist Exploration",
+          "Night Listening",
+          "Mood"
+        ],
+        "selected": [
+          0.5562456866804694,
+          0.7018633540372671,
+          0.7538819875776398,
+          0.333592132505176,
+          0.3930296756383713,
+          0.048136645962732934
+        ],
+        "match": [
+          0.5244996549344375,
+          0.5716011042097998,
+          0.7559523809523809,
+          0.5671152518978606,
+          0.4230503795721187,
+          0.030020703933747405
+        ]
+      },
+      "quirks": [
+        {
+          "label": "Energy",
+          "description": "How intense and high-motion the listening profile feels overall.",
+          "selected_score": 0.993271221532091,
+          "match_score": 0.9577294685990339
+        },
+        {
+          "label": "Mood",
+          "description": "A composite of valence and emotional brightness in the music they choose.",
+          "selected_score": 0.048136645962732934,
+          "match_score": 0.030020703933747405
+        },
+        {
+          "label": "Underground Lean",
+          "description": "How strongly the listener skews toward deeper cuts and non-mainstream tracks.",
+          "selected_score": 0.7538819875776398,
+          "match_score": 0.7559523809523809
+        }
+      ],
+      "opposites": [
+        {
+          "label": "Artist Exploration",
+          "description": "How many artists they explore and how concentrated their repeat listening becomes.",
+          "selected_score": 0.333592132505176,
+          "match_score": 0.5671152518978606
+        },
+        {
+          "label": "Tempo",
+          "description": "How fast-paced the pair's listening history tends to be.",
+          "selected_score": 0.7018633540372671,
+          "match_score": 0.5716011042097998
+        },
+        {
+          "label": "Energy",
+          "description": "How intense and high-motion the listening profile feels overall.",
+          "selected_score": 0.993271221532091,
+          "match_score": 0.9577294685990339
+        }
+      ],
+      "dna": [
+        {
+          "label": "Underground Lean",
+          "description": "How strongly the listener skews toward deeper cuts and non-mainstream tracks.",
+          "selected_score": 0.7538819875776398,
+          "match_score": 0.7559523809523809
+        },
+        {
+          "label": "Mood",
+          "description": "A composite of valence and emotional brightness in the music they choose.",
+          "selected_score": 0.048136645962732934,
+          "match_score": 0.030020703933747405
+        },
+        {
+          "label": "Genre Breadth",
+          "description": "How wide the user ranges across genres without collapsing into a single lane.",
+          "selected_score": 0.50163906142167,
+          "match_score": 0.5251897860593513
+        }
+      ]
+    },
+    {
+      "selected_user": {
+        "alias": "Genre Atlas",
+        "blurb": "The broadest genre explorer in the demo set.",
+        "listener_profile": "Follower/Others"
+      },
+      "match_user": {
+        "alias": "Nimbus Skyline",
+        "listener_profile": "Follower/Others"
+      },
+      "predicted_similarity": 0.9136942625045776,
+      "future_alignment": 0.9458626247404572,
+      "radar": {
+        "categories": [
+          "Loyalty",
+          "Tempo",
+          "Genre Breadth",
+          "Mood",
+          "Energy",
+          "Night Listening"
+        ],
+        "selected": [
+          0.49335748792270534,
+          0.4858523119392684,
+          0.586783988957902,
+          0.770703933747412,
+          0.41632160110420974,
+          0.6349206349206349
+        ],
+        "match": [
+          0.2437888198757764,
+          0.4052795031055901,
+          0.5396825396825397,
+          0.7517253278122844,
+          0.32487922705314015,
+          0.650103519668737
+        ]
+      },
+      "quirks": [
+        {
+          "label": "Artist Exploration",
+          "description": "How many artists they explore and how concentrated their repeat listening becomes.",
+          "selected_score": 0.8795721187025535,
+          "match_score": 0.9639406487232574
+        },
+        {
+          "label": "Underground Lean",
+          "description": "How strongly the listener skews toward deeper cuts and non-mainstream tracks.",
+          "selected_score": 0.5745341614906833,
+          "match_score": 0.7732919254658386
+        },
+        {
+          "label": "Mood",
+          "description": "A composite of valence and emotional brightness in the music they choose.",
+          "selected_score": 0.770703933747412,
+          "match_score": 0.7517253278122844
+        }
+      ],
+      "opposites": [
+        {
+          "label": "Loyalty",
+          "description": "How much they commit to repeat listens, early favorites, and familiar comfort zones.",
+          "selected_score": 0.49335748792270534,
+          "match_score": 0.2437888198757764
+        },
+        {
+          "label": "Underground Lean",
+          "description": "How strongly the listener skews toward deeper cuts and non-mainstream tracks.",
+          "selected_score": 0.5745341614906833,
+          "match_score": 0.7732919254658386
+        },
+        {
+          "label": "Energy",
+          "description": "How intense and high-motion the listening profile feels overall.",
+          "selected_score": 0.41632160110420974,
+          "match_score": 0.32487922705314015
+        }
+      ],
+      "dna": [
+        {
+          "label": "Night Listening",
+          "description": "How much the user leans into late-night sessions and after-hours listening.",
+          "selected_score": 0.6349206349206349,
+          "match_score": 0.650103519668737
+        },
+        {
+          "label": "Mood",
+          "description": "A composite of valence and emotional brightness in the music they choose.",
+          "selected_score": 0.770703933747412,
+          "match_score": 0.7517253278122844
+        },
+        {
+          "label": "Genre Breadth",
+          "description": "How wide the user ranges across genres without collapsing into a single lane.",
+          "selected_score": 0.586783988957902,
+          "match_score": 0.5396825396825397
+        }
+      ]
+    }
+  ]
+}
