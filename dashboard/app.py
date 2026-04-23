@@ -1,16 +1,33 @@
 from __future__ import annotations
 
+import re
+from pathlib import Path
+import sys
+
 import streamlit as st
 
-from dashboard.components.data_health import render_data_health
-from dashboard.components.description import render_description
-from dashboard.components.implementation_ideas import render_implementation_ideas
-from dashboard.components.model_comparison import render_model_comparison
-from dashboard.components.title import render_title
-from dashboard.components.top_visualization import render_top_visualization
-from dashboard.config import CONFIG
-from dashboard.services.contexts import build_pair_context, load_alias_catalog
-from dashboard.services.data import inspect_artifact_status
+# Ensure `uv run streamlit run dashboard/app.py` can resolve the package imports.
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+# from dashboard.components.data_health import render_data_health
+# from dashboard.components.description import render_description
+# from dashboard.components.implementation_ideas import render_implementation_ideas
+from dashboard.components.implementation_ideas import (  # noqa: E402
+    render_implementation_ideas_grid,
+    render_model_explanation_section,
+)
+
+# from dashboard.components.model_comparison import render_model_comparison
+# from dashboard.components.title import render_title
+# from dashboard.components.top_visualization import render_top_visualization
+from dashboard.config import CONFIG  # noqa: E402
+from dashboard.services.contexts import (  # noqa: E402
+    build_pair_context,
+    load_alias_catalog,
+)
+from dashboard.services.data import inspect_artifact_status  # noqa: E402
 
 
 def _display_path(path: str) -> str:
@@ -24,13 +41,42 @@ def _display_path(path: str) -> str:
 
 def inject_styles() -> None:
     style = CONFIG.style
+    mobile_root_tokens = _load_mobile_root_tokens()
     st.markdown(
         f"""
         <style>
+            {mobile_root_tokens}
             .stApp {{
                 background:
                     radial-gradient(circle at top left, rgba(94, 194, 255, 0.18), transparent 30%),
                     linear-gradient(180deg, {style.background} 0%, #050a13 100%);
+                color: {style.text_primary};
+            }}
+            .block-container {{
+                max-width: 1400px;
+                padding-top: 1rem;
+                padding-bottom: 4rem;
+            }}
+            [data-testid="stSidebar"] {{
+                background:
+                    radial-gradient(circle at top right, rgba(246, 80, 143, 0.18), transparent 28%),
+                    linear-gradient(180deg, rgba(5, 10, 19, 0.98), rgba(8, 15, 26, 0.98));
+                border-right: 1px solid rgba(255, 255, 255, 0.08);
+            }}
+            [data-testid="stSidebar"] * {{
+                color: {style.text_primary};
+            }}
+            [data-testid="stSidebar"] .stSelectbox label,
+            [data-testid="stSidebar"] .stToggle label {{
+                color: {style.text_primary};
+            }}
+            [data-testid="stSidebar"] [data-baseweb="select"] > div,
+            [data-testid="stSidebar"] [data-baseweb="select"] input {{
+                background: rgba(255, 255, 255, 0.06);
+                border-radius: 16px;
+            }}
+            [data-testid="stSidebar"] .st-emotion-cache-16txtl3,
+            [data-testid="stSidebar"] .st-emotion-cache-1r6slb0 {{
                 color: {style.text_primary};
             }}
             .hero-panel, .info-card, .flow-card, .idea-header, .pair-summary, .axis-note, .error-panel, .status-card {{
@@ -182,6 +228,82 @@ def inject_styles() -> None:
                 font-family: Consolas, "Courier New", monospace;
                 white-space: nowrap;
             }}
+            .dashboard-title-row {{
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 1.25rem;
+                margin-bottom: 0.85rem;
+            }}
+            .dashboard-title-copy h1 {{
+                margin: 0;
+                font-size: clamp(2.05rem, 3vw, 3rem);
+                line-height: 1.04;
+                letter-spacing: -0.05em;
+                color: {style.text_primary};
+            }}
+            .dashboard-score-pill {{
+                display: inline-flex;
+                align-items: center;
+                gap: 0.85rem;
+                padding: 0.7rem 0.95rem;
+                border-radius: 26px;
+                border: 1px solid rgba(255, 255, 255, 0.10);
+                background:
+                    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03)),
+                    rgba(15, 27, 45, 0.82);
+                box-shadow: 0 22px 50px rgba(0, 0, 0, 0.18);
+            }}
+            .dashboard-score-avatar {{
+                width: 52px;
+                height: 52px;
+                border-radius: 18px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                color: white;
+                font-size: 1.05rem;
+                font-weight: 760;
+            }}
+            .dashboard-score-avatar.selected {{
+                background: linear-gradient(135deg, rgba(94, 194, 255, 1), rgba(68, 154, 255, 0.82));
+            }}
+            .dashboard-score-avatar.match {{
+                background: linear-gradient(135deg, rgba(246, 80, 143, 1), rgba(255, 142, 101, 0.82));
+            }}
+            .dashboard-score-copy {{
+                text-align: center;
+                min-width: 88px;
+            }}
+            .dashboard-score-value {{
+                margin: 0;
+                font-size: 2.1rem;
+                line-height: 1;
+                font-weight: 800;
+                letter-spacing: -0.05em;
+                background: linear-gradient(90deg, rgba(246, 80, 143, 1), rgba(196, 181, 253, 0.98));
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+            }}
+            .dashboard-score-label {{
+                margin: 0.2rem 0 0 0;
+                color: {style.text_muted};
+                font-size: 0.86rem;
+            }}
+            .dashboard-divider {{
+                height: 1px;
+                margin: 0 0 1rem 0;
+                background: linear-gradient(90deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04));
+            }}
+            .dashboard-section-label {{
+                margin: 0 0 1rem 0;
+                color: {style.text_primary};
+                font-size: clamp(1.18rem, 1.65vw, 1.72rem);
+                line-height: 1.1;
+                font-weight: 780;
+                letter-spacing: -0.03em;
+                text-transform: uppercase;
+            }}
             @media (max-width: 900px) {{
                 .hero-intro-heading {{
                     font-size: 1.25rem;
@@ -189,11 +311,28 @@ def inject_styles() -> None:
                 .hero-intro-body {{
                     font-size: 0.96rem;
                 }}
+                .dashboard-title-row {{
+                    flex-direction: column;
+                    align-items: flex-start;
+                }}
+                .dashboard-score-pill {{
+                    width: 100%;
+                    justify-content: center;
+                }}
             }}
         </style>
         """,
         unsafe_allow_html=True,
     )
+
+
+def _load_mobile_root_tokens() -> str:
+    from pathlib import Path
+
+    style_path = Path(__file__).resolve().parents[1] / "mobile-demo" / "style.css"
+    css = style_path.read_text(encoding="utf-8")
+    match = re.search(r":root\s*\{.*?\}", css, flags=re.DOTALL)
+    return match.group(0) if match else ""
 
 
 def render_runtime_banner(demo_mode: bool) -> None:
@@ -309,6 +448,38 @@ def render_dashboard_error(error: Exception, demo_mode: bool) -> None:
     )
 
 
+def _initials(value: str) -> str:
+    cleaned = " ".join(part for part in value.split() if part)
+    if not cleaned:
+        return "??"
+
+    pieces = cleaned.split()
+    if len(pieces) == 1:
+        return pieces[0][:2].upper()
+    return "".join(piece[0] for piece in pieces[:2]).upper()
+
+
+def render_dashboard_header(context) -> None:
+    st.markdown(
+        f"""
+        <div class="dashboard-title-row">
+            <div class="dashboard-title-copy">
+                <h1>Dating App Model Productization Dashboard</h1>
+            </div>
+            <div class="dashboard-score-pill">
+                <span class="dashboard-score-avatar selected">{_initials(context.selected_alias)}</span>
+                <div class="dashboard-score-copy">
+                    <p class="dashboard-score-value">{max(0.0, min(1.0, context.predicted_similarity)):.0%}</p>
+                    <p class="dashboard-score-label">Pair Score</p>
+                </div>
+                <span class="dashboard-score-avatar match">{_initials(context.match_alias)}</span>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def main() -> None:
     st.set_page_config(
         page_title=CONFIG.ui.app_title,
@@ -318,7 +489,7 @@ def main() -> None:
     inject_styles()
 
     model_key, selected_user_id, demo_mode = render_sidebar()
-    render_runtime_banner(demo_mode)
+    # render_runtime_banner(demo_mode)
 
     spinner_message = (
         "Building match story from built-in demo data..."
@@ -337,12 +508,24 @@ def main() -> None:
         render_dashboard_error(error, demo_mode)
         return
 
-    render_title(context)
-    render_description(context)
-    render_data_health(context, demo_mode)
-    render_model_comparison(selected_user_id, demo_mode)
-    render_top_visualization(context)
-    render_implementation_ideas(context)
+    # render_title(context)
+    # render_description(context)
+    # render_data_health(context, demo_mode)
+    # render_model_comparison(selected_user_id, demo_mode)
+    # render_top_visualization(context)
+    # render_implementation_ideas(context)
+    render_dashboard_header(context)
+    st.markdown('<div class="dashboard-divider"></div>', unsafe_allow_html=True)
+    st.markdown(
+        '<h2 class="dashboard-section-label">1. Production Implementation Ideas (Top-To-Down)</h2>',
+        unsafe_allow_html=True,
+    )
+    render_implementation_ideas_grid(context)
+    st.markdown(
+        '<h2 class="dashboard-section-label">2. High-Level Explanation Of What The Model Sees</h2>',
+        unsafe_allow_html=True,
+    )
+    render_model_explanation_section(context)
 
 
 if __name__ == "__main__":
