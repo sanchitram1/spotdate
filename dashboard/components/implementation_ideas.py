@@ -638,9 +638,6 @@ def _format_hours(minutes: int) -> str:
 def _build_stats_comparison_visual(
     *,
     header: str,
-    subheader: str,
-    selected_alias: str,
-    match_alias: str,
     selected_metric: int,
     match_metric: int,
     selected_display: str,
@@ -650,7 +647,9 @@ def _build_stats_comparison_visual(
     selected_width = (selected_metric / ceiling) * 100 if selected_metric > 0 else 0.0
     match_width = (match_metric / ceiling) * 100 if match_metric > 0 else 0.0
 
-    def _row_markup(metric_value: int, width: float, display_value: str, role: str) -> str:
+    def _row_markup(
+        metric_value: int, width: float, display_value: str, role: str
+    ) -> str:
         fill_class = f"stats-bar-fill {role}"
         if metric_value > 0:
             fill_class += " has-value"
@@ -678,7 +677,6 @@ def _build_stats_comparison_visual(
     return f"""
     <div class="stats-panel">
         <div class="stats-header">{escape(header)}</div>
-        <div class="stats-subheader">{escape(subheader)}</div>
         <div class="stats-rows">
             {selected_row}
             {match_row}
@@ -699,13 +697,10 @@ def _build_track_visual(
     match_count: int,
 ) -> str:
     title = track_name or fallback_title
-    subtitle = artist_name or fallback_subtitle
+    del artist_name, fallback_subtitle, selected_alias, match_alias
 
     return _build_stats_comparison_visual(
         header=f'"{title}"',
-        subheader=subtitle,
-        selected_alias=selected_alias,
-        match_alias=match_alias,
         selected_metric=selected_count,
         match_metric=match_count,
         selected_display=f"{selected_count}" if selected_count > 0 else "—",
@@ -721,13 +716,11 @@ def _build_foundation_visual(
     selected_share: float,
     match_share: float,
 ) -> str:
+    del selected_alias, match_alias
     selected_metric = max(0, int(round(selected_share * 100)))
     match_metric = max(0, int(round(match_share * 100)))
     return _build_stats_comparison_visual(
         header=f"{genre_name}",
-        subheader="% of total",
-        selected_alias=selected_alias,
-        match_alias=match_alias,
         selected_metric=selected_metric,
         match_metric=match_metric,
         selected_display=_percent(selected_share),
@@ -742,11 +735,9 @@ def _build_immersion_visual(
     selected_minutes: int,
     match_minutes: int,
 ) -> str:
+    del selected_alias, match_alias
     return _build_stats_comparison_visual(
         header="Listening time",
-        subheader="Total minutes logged",
-        selected_alias=selected_alias,
-        match_alias=match_alias,
         selected_metric=max(0, selected_minutes),
         match_metric=max(0, match_minutes),
         selected_display=f"{selected_minutes:,}" if selected_minutes > 0 else "—",
@@ -768,13 +759,6 @@ def _build_reveal_visual(
             <div class="spotlight-title">{escape(match_alias)}</div>
             <div class="reveal-score">{_percent(predicted_similarity)}</div>
             <div class="spotlight-subtitle">Top overlap: {escape(top_label)}</div>
-        </div>
-        <div class="metric-row">
-            <div>
-                <div class="metric-label">Why it lands</div>
-                <strong>{escape(top_label)}</strong>
-            </div>
-            <div class="legend-meta">{escape(_short_text(top_story, 44))}</div>
         </div>
     </div>
     """
@@ -1073,24 +1057,24 @@ def _build_match_reveal_screens(
                 top_label=str(top_signal["label"]),
                 top_story=str(top_signal["story_lead"]),
             ),
-            body="The first tap answers the emotional question: who is this match?",
-            footer="Then the next taps can explain why the model felt confident without breaking the mood.",
+            body="",
+            footer="",
         ),
         Screen(
             eyebrow="Match Reveal",
             title="Shared Green Flags",
-            subtitle="Surface what already feels affirming between the pair.",
+            subtitle="",
             visual_html=_build_tag_visual(green_flags, "good"),
-            body="Positive language keeps the explanation warm and easy to scan.",
-            footer="These are the pair traits we would want users to screenshot or send to a friend.",
+            body="",
+            footer="",
         ),
         Screen(
             eyebrow="Match Reveal",
             title="Match Quirks",
-            subtitle="Then reveal the harmless weirdness that makes the person memorable.",
+            subtitle="",
             visual_html=_build_tag_visual(match_quirks, "quirk"),
-            body="Quirks make the recommendation feel human instead of machine-generated.",
-            footer=f"This last screen stays focused on {context.match_alias}, so the reveal still feels like discovery.",
+            body="",
+            footer="",
         ),
     ]
 

@@ -266,10 +266,10 @@ def render_phone_screens(
             .visual-card {{
                 flex: 1;
                 min-height: 0;
-                border-radius: 20px;
-                padding: 14px;
-                background: rgba(5, 10, 19, 0.46);
-                border: 1px solid rgba(255, 255, 255, 0.08);
+                border-radius: 0;
+                padding: 8px 0;
+                background: transparent;
+                border: 0;
                 display: flex;
                 flex-direction: column;
                 justify-content: flex-start;
@@ -380,21 +380,22 @@ def render_phone_screens(
             .stats-panel {{
                 display: flex;
                 flex-direction: column;
-                gap: 8px;
+                gap: 10px;
                 height: 100%;
             }}
 
             .stats-header {{
                 color: white;
-                font-size: 1.34rem;
+                font-size: 1.2rem;
                 line-height: 1.1;
-                font-weight: 760;
+                font-weight: 500;
                 letter-spacing: -0.02em;
+                text-align: center;
             }}
 
             .stats-subheader {{
                 color: rgba(248, 250, 252, 0.68);
-                font-size: 0.8rem;
+                font-size: 0.76rem;
             }}
 
             .stats-rows {{
@@ -410,17 +411,17 @@ def render_phone_screens(
                 grid-template-columns: minmax(0, 1fr);
                 align-items: center;
                 gap: 0;
-                padding: 10px;
-                border-radius: 16px;
-                background: rgba(255, 255, 255, 0.05);
-                border: 1px solid rgba(255, 255, 255, 0.07);
+                padding: 6px 0;
+                border-radius: 0;
+                background: transparent;
+                border: 0;
             }}
 
             .stats-bar-track {{
                 width: 100%;
                 height: 35px;
                 border-radius: 11px;
-                background: rgba(255, 255, 255, 0.08);
+                background: transparent;
                 overflow: hidden;
                 display: flex;
                 align-items: stretch;
@@ -433,8 +434,8 @@ def render_phone_screens(
                 align-items: center;
                 justify-content: center;
                 color: white;
-                font-size: 0.98rem;
-                font-weight: 770;
+                font-size: 0.92rem;
+                font-weight: 400;
                 min-width: 0;
                 white-space: nowrap;
             }}
@@ -444,7 +445,7 @@ def render_phone_screens(
             }}
 
             .stats-bar-fill.selected {{
-                background: linear-gradient(90deg, rgba(214, 218, 226, 0.95), rgba(163, 171, 185, 0.9));
+                background: #333333;
             }}
 
             .stats-bar-fill.match {{
@@ -1110,10 +1111,10 @@ def render_phone_concept_card(
             .visual-card {{
                 flex: 1;
                 min-height: 0;
-                border-radius: 18px;
-                padding: 12px;
-                background: rgba(5, 10, 19, 0.46);
-                border: 1px solid rgba(255, 255, 255, 0.08);
+                border-radius: 0;
+                padding: 6px 0;
+                background: transparent;
+                border: 0;
                 display: flex;
                 flex-direction: column;
                 justify-content: flex-start;
@@ -1134,21 +1135,22 @@ def render_phone_concept_card(
             .stats-panel {{
                 display: flex;
                 flex-direction: column;
-                gap: 8px;
+                gap: 10px;
                 height: 100%;
             }}
 
             .stats-header {{
                 color: white;
-                font-size: 1.14rem;
+                font-size: 1.04rem;
                 line-height: 1.12;
-                font-weight: 760;
+                font-weight: 500;
                 letter-spacing: -0.02em;
+                text-align: center;
             }}
 
             .stats-subheader {{
                 color: rgba(248, 250, 252, 0.68);
-                font-size: 0.72rem;
+                font-size: 0.7rem;
             }}
 
             .stats-rows {{
@@ -1164,17 +1166,17 @@ def render_phone_concept_card(
                 grid-template-columns: minmax(0, 1fr);
                 align-items: center;
                 gap: 0;
-                padding: 8px;
-                border-radius: 14px;
-                background: rgba(255, 255, 255, 0.05);
-                border: 1px solid rgba(255, 255, 255, 0.07);
+                padding: 5px 0;
+                border-radius: 0;
+                background: transparent;
+                border: 0;
             }}
 
             .stats-bar-track {{
                 width: 100%;
                 height: 29px;
                 border-radius: 10px;
-                background: rgba(255, 255, 255, 0.08);
+                background: transparent;
                 overflow: hidden;
                 display: flex;
                 align-items: stretch;
@@ -1187,8 +1189,8 @@ def render_phone_concept_card(
                 align-items: center;
                 justify-content: center;
                 color: white;
-                font-size: 0.88rem;
-                font-weight: 760;
+                font-size: 0.84rem;
+                font-weight: 400;
                 min-width: 0;
                 white-space: nowrap;
             }}
@@ -1198,7 +1200,7 @@ def render_phone_concept_card(
             }}
 
             .stats-bar-fill.selected {{
-                background: linear-gradient(90deg, rgba(214, 218, 226, 0.95), rgba(163, 171, 185, 0.9));
+                background: #333333;
             }}
 
             .stats-bar-fill.match {{
