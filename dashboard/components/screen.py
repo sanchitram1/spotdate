@@ -185,7 +185,7 @@ def render_phone_screens(
                 padding: 22px 22px 28px;
                 display: flex;
                 flex-direction: column;
-                gap: 16px;
+                gap: 10px;
                 opacity: 0;
                 transform: translateX(18px);
                 transition:
@@ -199,149 +199,81 @@ def render_phone_screens(
                 transform: translateX(0);
             }}
 
-            .screen-meta {{
+            .screen-top-half,
+            .screen-bottom-half {{
+                border-radius: 0;
+                border: 0;
+                background: transparent;
+                backdrop-filter: none;
+                -webkit-backdrop-filter: none;
+            }}
+
+            .screen-top-half {{
+                min-height: 206px;
+                padding: 8px 4px 10px;
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between;
+            }}
+
+            .match-image-placeholder {{
+                width: 126px;
+                height: 126px;
+                margin: 0 auto;
+                border-radius: 28px;
+                border: 1px solid rgba(255, 255, 255, 0.14);
+                background: rgba(255, 255, 255, 0.06);
+                display: grid;
+                place-items: center;
+                text-transform: lowercase;
+                color: rgba(248, 250, 252, 0.7);
+                font-size: 0.9rem;
+                letter-spacing: 0.03em;
+            }}
+
+            .top-half-meta {{
                 display: flex;
                 justify-content: space-between;
-                align-items: center;
+                align-items: baseline;
                 gap: 12px;
-                margin-top: 12px;
+                border-top: 0;
+                padding-top: 10px;
             }}
 
-            .screen-step,
-            .tap-hint {{
-                display: inline-flex;
-                align-items: center;
-                gap: 8px;
-                border-radius: 999px;
-                background: rgba(255, 255, 255, 0.08);
-                border: 1px solid rgba(255, 255, 255, 0.08);
-                color: rgba(248, 250, 252, 0.84);
-                font-size: 0.72rem;
-                padding: 8px 12px;
-                letter-spacing: 0.04em;
-                text-transform: uppercase;
+            .top-half-match {{
+                color: white;
+                font-size: 1.12rem;
+                font-weight: 730;
+                line-height: 1.15;
             }}
 
-            .tap-hint {{
-                background: rgba(255, 255, 255, 0.06);
+            .top-half-score {{
+                color: white;
+                font-size: 1.42rem;
+                font-weight: 780;
+                letter-spacing: -0.02em;
             }}
 
-            .pair-card {{
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                gap: 12px;
-                padding: 18px;
-                border-radius: 24px;
-                background:
-                    linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.03)),
-                    rgba(15, 27, 45, 0.72);
-                border: 1px solid rgba(255, 255, 255, 0.08);
-                backdrop-filter: blur(20px);
-                -webkit-backdrop-filter: blur(20px);
-                box-shadow: 0 18px 40px rgba(0, 0, 0, 0.24);
-            }}
-
-            .profile-pill {{
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                gap: 8px;
-                min-width: 82px;
-            }}
-
-            .profile-avatar {{
-                width: 58px;
-                height: 58px;
-                border-radius: 18px;
-                background: rgba(255, 255, 255, 0.1);
-                border: 1px solid rgba(255, 255, 255, 0.16);
-                box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
-            }}
-
-            .profile-avatar.selected {{
-                border-color: rgba(94, 194, 255, 0.52);
-            }}
-
-            .profile-avatar.match {{
-                border-color: rgba(246, 80, 143, 0.52);
-            }}
-
-            .profile-label {{
-                max-width: 108px;
-                font-size: 0.75rem;
-                line-height: 1.25;
-                text-align: center;
-                color: rgba(248, 250, 252, 0.82);
-            }}
-
-            .score-chip {{
+            .screen-bottom-half {{
                 flex: 1;
-                text-align: center;
-                padding: 10px 14px;
-                border-radius: 20px;
-                background: rgba(5, 10, 19, 0.72);
-                border: 1px solid rgba(255, 255, 255, 0.08);
-            }}
-
-            .score-chip strong {{
-                display: block;
-                font-size: 1.25rem;
-                color: white;
-                margin-bottom: 4px;
-            }}
-
-            .score-chip span {{
-                font-size: 0.74rem;
-                color: var(--text-muted);
-                letter-spacing: 0.04em;
-                text-transform: uppercase;
-            }}
-
-            .screen-copy {{
+                min-height: 0;
+                padding: 12px 4px 8px;
                 display: flex;
                 flex-direction: column;
-                gap: 6px;
-            }}
-
-            .screen-eyebrow {{
-                color: var(--accent-blue);
-                text-transform: uppercase;
-                letter-spacing: 0.1em;
-                font-size: 0.72rem;
-                font-weight: 700;
-            }}
-
-            .screen-title {{
-                color: white;
-                font-size: 1.72rem;
-                line-height: 1.06;
-                font-weight: 750;
-                letter-spacing: -0.03em;
-            }}
-
-            .screen-subtitle {{
-                color: rgba(248, 250, 252, 0.7);
-                font-size: 0.96rem;
-                line-height: 1.45;
+                gap: 10px;
             }}
 
             .visual-card {{
                 flex: 1;
                 min-height: 0;
-                border-radius: 28px;
-                padding: 18px;
-                background:
-                    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03)),
-                    rgba(15, 27, 45, 0.72);
+                border-radius: 20px;
+                padding: 14px;
+                background: rgba(5, 10, 19, 0.46);
                 border: 1px solid rgba(255, 255, 255, 0.08);
-                backdrop-filter: blur(18px);
-                -webkit-backdrop-filter: blur(18px);
-                box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
                 display: flex;
                 flex-direction: column;
-                justify-content: center;
-                gap: 14px;
+                justify-content: flex-start;
+                gap: 10px;
             }}
 
             .screen-body,
@@ -443,6 +375,80 @@ def render_phone_screens(
             .legend-value {{
                 color: white;
                 font-weight: 700;
+            }}
+
+            .stats-panel {{
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                height: 100%;
+            }}
+
+            .stats-header {{
+                color: white;
+                font-size: 1.34rem;
+                line-height: 1.1;
+                font-weight: 760;
+                letter-spacing: -0.02em;
+            }}
+
+            .stats-subheader {{
+                color: rgba(248, 250, 252, 0.68);
+                font-size: 0.8rem;
+            }}
+
+            .stats-rows {{
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+                flex: 1;
+                justify-content: center;
+            }}
+
+            .stats-row {{
+                display: grid;
+                grid-template-columns: minmax(0, 1fr);
+                align-items: center;
+                gap: 0;
+                padding: 10px;
+                border-radius: 16px;
+                background: rgba(255, 255, 255, 0.05);
+                border: 1px solid rgba(255, 255, 255, 0.07);
+            }}
+
+            .stats-bar-track {{
+                width: 100%;
+                height: 35px;
+                border-radius: 11px;
+                background: rgba(255, 255, 255, 0.08);
+                overflow: hidden;
+                display: flex;
+                align-items: stretch;
+            }}
+
+            .stats-bar-fill {{
+                height: 100%;
+                border-radius: inherit;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                color: white;
+                font-size: 0.98rem;
+                font-weight: 770;
+                min-width: 0;
+                white-space: nowrap;
+            }}
+
+            .stats-bar-fill.has-value {{
+                min-width: 40px;
+            }}
+
+            .stats-bar-fill.selected {{
+                background: linear-gradient(90deg, rgba(214, 218, 226, 0.95), rgba(163, 171, 185, 0.9));
+            }}
+
+            .stats-bar-fill.match {{
+                background: linear-gradient(90deg, rgba(246, 80, 143, 1), rgba(255, 142, 101, 0.84));
             }}
 
             .duo-columns {{
@@ -1026,7 +1032,7 @@ def render_phone_concept_card(
                 padding: 18px 18px 22px;
                 display: flex;
                 flex-direction: column;
-                gap: 14px;
+                gap: 10px;
                 opacity: 0;
                 transform: translateX(18px);
                 transition:
@@ -1038,6 +1044,187 @@ def render_phone_concept_card(
             .tap-screen.active {{
                 opacity: 1;
                 transform: translateX(0);
+            }}
+
+            .screen-top-half,
+            .screen-bottom-half {{
+                border-radius: 0;
+                border: 0;
+                background: transparent;
+            }}
+
+            .screen-top-half {{
+                min-height: 182px;
+                padding: 8px 4px 10px;
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between;
+            }}
+
+            .match-image-placeholder {{
+                width: 108px;
+                height: 108px;
+                margin: 0 auto;
+                border-radius: 22px;
+                border: 1px solid rgba(255, 255, 255, 0.14);
+                background: rgba(255, 255, 255, 0.06);
+                display: grid;
+                place-items: center;
+                text-transform: lowercase;
+                color: rgba(248, 250, 252, 0.7);
+                font-size: 0.82rem;
+                letter-spacing: 0.03em;
+            }}
+
+            .top-half-meta {{
+                display: flex;
+                justify-content: space-between;
+                align-items: baseline;
+                gap: 10px;
+                border-top: 0;
+                padding-top: 9px;
+            }}
+
+            .top-half-match {{
+                color: white;
+                font-size: 1rem;
+                font-weight: 720;
+            }}
+
+            .top-half-score {{
+                color: white;
+                font-size: 1.3rem;
+                font-weight: 780;
+                letter-spacing: -0.02em;
+            }}
+
+            .screen-bottom-half {{
+                flex: 1;
+                min-height: 0;
+                padding: 12px 4px 8px;
+                display: flex;
+                flex-direction: column;
+                gap: 9px;
+            }}
+
+            .visual-card {{
+                flex: 1;
+                min-height: 0;
+                border-radius: 18px;
+                padding: 12px;
+                background: rgba(5, 10, 19, 0.46);
+                border: 1px solid rgba(255, 255, 255, 0.08);
+                display: flex;
+                flex-direction: column;
+                justify-content: flex-start;
+                gap: 9px;
+            }}
+
+            .screen-body,
+            .screen-footer {{
+                color: rgba(248, 250, 252, 0.82);
+                font-size: 0.8rem;
+                line-height: 1.42;
+            }}
+
+            .screen-footer {{
+                color: var(--text-muted);
+            }}
+
+            .stats-panel {{
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                height: 100%;
+            }}
+
+            .stats-header {{
+                color: white;
+                font-size: 1.14rem;
+                line-height: 1.12;
+                font-weight: 760;
+                letter-spacing: -0.02em;
+            }}
+
+            .stats-subheader {{
+                color: rgba(248, 250, 252, 0.68);
+                font-size: 0.72rem;
+            }}
+
+            .stats-rows {{
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+                flex: 1;
+                justify-content: center;
+            }}
+
+            .stats-row {{
+                display: grid;
+                grid-template-columns: minmax(0, 1fr);
+                align-items: center;
+                gap: 0;
+                padding: 8px;
+                border-radius: 14px;
+                background: rgba(255, 255, 255, 0.05);
+                border: 1px solid rgba(255, 255, 255, 0.07);
+            }}
+
+            .stats-bar-track {{
+                width: 100%;
+                height: 29px;
+                border-radius: 10px;
+                background: rgba(255, 255, 255, 0.08);
+                overflow: hidden;
+                display: flex;
+                align-items: stretch;
+            }}
+
+            .stats-bar-fill {{
+                height: 100%;
+                border-radius: inherit;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                color: white;
+                font-size: 0.88rem;
+                font-weight: 760;
+                min-width: 0;
+                white-space: nowrap;
+            }}
+
+            .stats-bar-fill.has-value {{
+                min-width: 34px;
+            }}
+
+            .stats-bar-fill.selected {{
+                background: linear-gradient(90deg, rgba(214, 218, 226, 0.95), rgba(163, 171, 185, 0.9));
+            }}
+
+            .stats-bar-fill.match {{
+                background: linear-gradient(90deg, rgba(246, 80, 143, 1), rgba(255, 142, 101, 0.84));
+            }}
+
+            .screen-dots {{
+                display: flex;
+                justify-content: center;
+                gap: 7px;
+                margin-top: 2px;
+            }}
+
+            .screen-dot {{
+                width: 7px;
+                height: 7px;
+                border-radius: 50%;
+                background: rgba(255, 255, 255, 0.18);
+                transition:
+                    transform 180ms ease,
+                    background 180ms ease;
+            }}
+
+            .screen-dot.active {{
+                background: linear-gradient(135deg, var(--accent-red), var(--accent-blue));
+                transform: scale(1.16);
             }}
         </style>
     </head>
@@ -1110,9 +1297,6 @@ def _build_screen_markup(
     match_alias: str,
     match_score: float,
 ) -> str:
-    safe_eyebrow = escape(screen.eyebrow)
-    safe_title = escape(screen.title)
-    safe_subtitle = escape(screen.subtitle)
     safe_body = escape(screen.body)
     safe_footer = escape(screen.footer)
     safe_match_alias = escape(match_alias)
@@ -1124,30 +1308,20 @@ def _build_screen_markup(
 
     return f"""
     <section class="tap-screen{" active" if index == 0 else ""}">
-        <div class="screen-meta">
-            <span class="screen-step">{index + 1} / {total}</span>
-            <span class="tap-hint">Tap anywhere</span>
-        </div>
-        <div class="pair-card">
-            <div class="score-chip">
-                <strong>{safe_score}</strong>
-                <span>match</span>
-            </div>
-            <div class="profile-pill">
-                <div class="profile-avatar match"></div>
-                <div class="profile-label">{safe_match_alias}</div>
+        <div class="screen-top-half">
+            <div class="match-image-placeholder">placeholder</div>
+            <div class="top-half-meta">
+                <span class="top-half-match">{safe_match_alias}</span>
+                <span class="top-half-score">{safe_score}</span>
             </div>
         </div>
-        <div class="screen-copy">
-            <div class="screen-eyebrow">{safe_eyebrow}</div>
-            <div class="screen-title">{safe_title}</div>
-            <div class="screen-subtitle">{safe_subtitle}</div>
+        <div class="screen-bottom-half">
+            <div class="visual-card">
+                {screen.visual_html}
+            </div>
+            {body_markup}
+            {footer_markup}
         </div>
-        <div class="visual-card">
-            {screen.visual_html}
-        </div>
-        {body_markup}
-        {footer_markup}
         <div class="screen-dots">
             {"".join(f'<span class="screen-dot{" active" if dot_index == index == 0 else ""}"></span>' for dot_index in range(total))}
         </div>
@@ -1159,6 +1333,54 @@ def _build_compact_phone_overrides() -> str:
     return """
         .phone-shell.compact {
             --phone-body-copy: 0.82rem;
+        }
+
+        .phone-shell.compact .screen-top-half {
+            min-height: 168px;
+            padding: 10px 10px 9px;
+            border-radius: 0;
+        }
+
+        .phone-shell.compact .match-image-placeholder {
+            width: 94px;
+            height: 94px;
+            border-radius: 18px;
+            font-size: 0.76rem;
+        }
+
+        .phone-shell.compact .top-half-match {
+            font-size: 0.92rem;
+        }
+
+        .phone-shell.compact .top-half-score {
+            font-size: 1.2rem;
+        }
+
+        .phone-shell.compact .screen-bottom-half {
+            padding: 10px;
+            border-radius: 0;
+        }
+
+        .phone-shell.compact .stats-header {
+            font-size: 1.14rem;
+        }
+
+        .phone-shell.compact .stats-subheader {
+            font-size: 0.72rem;
+        }
+
+        .phone-shell.compact .stats-row {
+            padding: 8px;
+            border-radius: 14px;
+            gap: 8px;
+        }
+
+        .phone-shell.compact .stats-bar-track {
+            height: 30px;
+        }
+
+        .phone-shell.compact .stats-bar-fill {
+            font-size: 0.9rem;
         }
 
         .phone-shell.compact .pair-card {

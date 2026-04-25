@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import csv
+import math
+import re
 from dataclasses import dataclass
 from functools import lru_cache
 from html import escape
-import math
 from pathlib import Path
-import re
 
 import pandas as pd
 import streamlit as st
@@ -635,6 +635,58 @@ def _format_hours(minutes: int) -> str:
     return f"{hours:.1f}h"
 
 
+def _build_stats_comparison_visual(
+    *,
+    header: str,
+    subheader: str,
+    selected_alias: str,
+    match_alias: str,
+    selected_metric: int,
+    match_metric: int,
+    selected_display: str,
+    match_display: str,
+) -> str:
+    ceiling = max(selected_metric, match_metric, 1)
+    selected_width = (selected_metric / ceiling) * 100 if selected_metric > 0 else 0.0
+    match_width = (match_metric / ceiling) * 100 if match_metric > 0 else 0.0
+
+    def _row_markup(metric_value: int, width: float, display_value: str, role: str) -> str:
+        fill_class = f"stats-bar-fill {role}"
+        if metric_value > 0:
+            fill_class += " has-value"
+        return f"""
+        <div class="stats-row">
+            <div class="stats-bar-track">
+                <div class="{fill_class}" style="width: {width:.1f}%">{escape(display_value)}</div>
+            </div>
+        </div>
+        """
+
+    selected_row = _row_markup(
+        metric_value=selected_metric,
+        width=selected_width,
+        display_value=selected_display,
+        role="selected",
+    )
+    match_row = _row_markup(
+        metric_value=match_metric,
+        width=match_width,
+        display_value=match_display,
+        role="match",
+    )
+
+    return f"""
+    <div class="stats-panel">
+        <div class="stats-header">{escape(header)}</div>
+        <div class="stats-subheader">{escape(subheader)}</div>
+        <div class="stats-rows">
+            {selected_row}
+            {match_row}
+        </div>
+    </div>
+    """
+
+
 def _build_track_visual(
     *,
     track_name: str | None,
@@ -649,29 +701,16 @@ def _build_track_visual(
     title = track_name or fallback_title
     subtitle = artist_name or fallback_subtitle
 
-    return f"""
-    <div class="spotlight-card">
-        <div class="spotlight-kicker">Most legible proof</div>
-        <div class="spotlight-title">{escape(title)}</div>
-        <div class="spotlight-subtitle">{escape(subtitle)}</div>
-    </div>
-    <div class="metric-grid">
-        <div class="metric-row">
-            <div>
-                <div class="metric-label">{escape(selected_alias)}</div>
-                <strong>Shared replay</strong>
-            </div>
-            <div class="metric-value">{selected_count if selected_count else "—"}</div>
-        </div>
-        <div class="metric-row">
-            <div>
-                <div class="metric-label">{escape(match_alias)}</div>
-                <strong>Shared replay</strong>
-            </div>
-            <div class="metric-value">{match_count if match_count else "—"}</div>
-        </div>
-    </div>
-    """
+    return _build_stats_comparison_visual(
+        header=f'"{title}"',
+        subheader=subtitle,
+        selected_alias=selected_alias,
+        match_alias=match_alias,
+        selected_metric=selected_count,
+        match_metric=match_count,
+        selected_display=f"{selected_count}" if selected_count > 0 else "—",
+        match_display=f"{match_count}" if match_count > 0 else "—",
+    )
 
 
 def _build_foundation_visual(
@@ -682,32 +721,18 @@ def _build_foundation_visual(
     selected_share: float,
     match_share: float,
 ) -> str:
-    selected_height = max(14.0, selected_share * 100.0)
-    match_height = max(14.0, match_share * 100.0)
-
-    return f"""
-    <div class="spotlight-card">
-        <div class="spotlight-kicker">Shared foundation</div>
-        <div class="spotlight-title">{escape(genre_name)}</div>
-        <div class="spotlight-subtitle">A shared home base before the pair branches out.</div>
-    </div>
-    <div class="duo-columns">
-        <div class="foundation-column">
-            <div class="foundation-bar">
-                <div class="foundation-fill selected" style="height: {selected_height:.1f}%"></div>
-            </div>
-            <div class="foundation-share">{_percent(selected_share)}</div>
-            <div class="metric-label">{escape(selected_alias)}</div>
-        </div>
-        <div class="foundation-column">
-            <div class="foundation-bar">
-                <div class="foundation-fill match" style="height: {match_height:.1f}%"></div>
-            </div>
-            <div class="foundation-share">{_percent(match_share)}</div>
-            <div class="metric-label">{escape(match_alias)}</div>
-        </div>
-    </div>
-    """
+    selected_metric = max(0, int(round(selected_share * 100)))
+    match_metric = max(0, int(round(match_share * 100)))
+    return _build_stats_comparison_visual(
+        header=f"{genre_name}",
+        subheader="% of total",
+        selected_alias=selected_alias,
+        match_alias=match_alias,
+        selected_metric=selected_metric,
+        match_metric=match_metric,
+        selected_display=_percent(selected_share),
+        match_display=_percent(match_share),
+    )
 
 
 def _build_immersion_visual(
@@ -717,30 +742,16 @@ def _build_immersion_visual(
     selected_minutes: int,
     match_minutes: int,
 ) -> str:
-    ceiling = max(selected_minutes, match_minutes, 1)
-    selected_width = (selected_minutes / ceiling) * 100 if selected_minutes else 0
-    match_width = (match_minutes / ceiling) * 100 if match_minutes else 0
-
-    return f"""
-    <div class="immersion-grid">
-        <div class="immersion-card">
-            <div class="metric-label">{escape(selected_alias)}</div>
-            <div class="immersion-value">{_format_hours(selected_minutes)}</div>
-            <div class="spotlight-subtitle">{selected_minutes:,} mins logged</div>
-            <div class="immersion-track">
-                <div class="immersion-fill selected" style="width: {selected_width:.1f}%"></div>
-            </div>
-        </div>
-        <div class="immersion-card">
-            <div class="metric-label">{escape(match_alias)}</div>
-            <div class="immersion-value">{_format_hours(match_minutes)}</div>
-            <div class="spotlight-subtitle">{match_minutes:,} mins logged</div>
-            <div class="immersion-track">
-                <div class="immersion-fill match" style="width: {match_width:.1f}%"></div>
-            </div>
-        </div>
-    </div>
-    """
+    return _build_stats_comparison_visual(
+        header="Listening time",
+        subheader="Total minutes logged",
+        selected_alias=selected_alias,
+        match_alias=match_alias,
+        selected_metric=max(0, selected_minutes),
+        match_metric=max(0, match_minutes),
+        selected_display=f"{selected_minutes:,}" if selected_minutes > 0 else "—",
+        match_display=f"{match_minutes:,}" if match_minutes > 0 else "—",
+    )
 
 
 def _build_reveal_visual(
@@ -1022,19 +1033,19 @@ def _build_stats_screens(
     return [
         Screen(
             eyebrow="",
-            title="Shared Obsessions",
+            title="",
             subtitle="",
             visual_html=track_visual,
         ),
         Screen(
             eyebrow="",
-            title="Common Ground",
+            title="",
             subtitle="",
             visual_html=foundation_visual,
         ),
         Screen(
             eyebrow="",
-            title="Music Immersion",
+            title="",
             subtitle="",
             visual_html=immersion_visual,
         ),

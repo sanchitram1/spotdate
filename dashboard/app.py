@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import re
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import streamlit as st
 
@@ -11,17 +11,10 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-# from dashboard.components.data_health import render_data_health
-# from dashboard.components.description import render_description
-# from dashboard.components.implementation_ideas import render_implementation_ideas
 from dashboard.components.implementation_ideas import (  # noqa: E402
     render_implementation_ideas_grid,
     render_model_explanation_section,
 )
-
-# from dashboard.components.model_comparison import render_model_comparison
-# from dashboard.components.title import render_title
-# from dashboard.components.top_visualization import render_top_visualization
 from dashboard.config import CONFIG  # noqa: E402
 from dashboard.services.contexts import (  # noqa: E402
     build_pair_context,
@@ -464,7 +457,7 @@ def render_dashboard_header(context) -> None:
         f"""
         <div class="dashboard-title-row">
             <div class="dashboard-title-copy">
-                <h1>Dating App Model Productization Dashboard</h1>
+                <h1>Spotdate Implementation Ideas</h1>
             </div>
             <div class="dashboard-score-pill">
                 <span class="dashboard-score-avatar selected">{_initials(context.selected_alias)}</span>
@@ -508,21 +501,15 @@ def main() -> None:
         render_dashboard_error(error, demo_mode)
         return
 
-    # render_title(context)
-    # render_description(context)
-    # render_data_health(context, demo_mode)
-    # render_model_comparison(selected_user_id, demo_mode)
-    # render_top_visualization(context)
-    # render_implementation_ideas(context)
     render_dashboard_header(context)
     st.markdown('<div class="dashboard-divider"></div>', unsafe_allow_html=True)
     st.markdown(
-        '<h2 class="dashboard-section-label">1. Production Implementation Ideas (Top-To-Down)</h2>',
+        '<h2 class="dashboard-section-label">1. What would the user see?</h2>',
         unsafe_allow_html=True,
     )
     render_implementation_ideas_grid(context)
     st.markdown(
-        '<h2 class="dashboard-section-label">2. High-Level Explanation Of What The Model Sees</h2>',
+        '<h2 class="dashboard-section-label">2. What does the model see?</h2>',
         unsafe_allow_html=True,
     )
     render_model_explanation_section(context)
