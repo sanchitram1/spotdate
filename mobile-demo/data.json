@@ -2,12 +2,12 @@
   "matches": [
     {
       "selected_user": {
-        "alias": "Midnight Mercury",
+        "alias": "Grusha",
         "blurb": "The most night-heavy listening pattern in the cohort.",
         "listener_profile": "0"
       },
       "match_user": {
-        "alias": "Parade Mirror",
+        "alias": "Roxana",
         "listener_profile": "Follower/Others"
       },
       "predicted_similarity": 0.87326979637146,
@@ -101,12 +101,12 @@
     },
     {
       "selected_user": {
-        "alias": "Voltage Violet",
+        "alias": "Rachel",
         "blurb": "The highest average-energy listener in the saved feature table.",
         "listener_profile": "Follower/Others"
       },
       "match_user": {
-        "alias": "Metro Canvas",
+        "alias": "Annie",
         "listener_profile": "Follower/Others"
       },
       "predicted_similarity": 0.9404259920120239,
@@ -200,12 +200,12 @@
     },
     {
       "selected_user": {
-        "alias": "Genre Atlas",
+        "alias": "Sanchit",
         "blurb": "The broadest genre explorer in the demo set.",
         "listener_profile": "Follower/Others"
       },
       "match_user": {
-        "alias": "Nimbus Skyline",
+        "alias": "Winnie",
         "listener_profile": "Follower/Others"
       },
       "predicted_similarity": 0.9136942625045776,
