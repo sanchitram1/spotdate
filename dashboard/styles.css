@@ -1,0 +1,183 @@
+.match-story-block {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.match-story-block.track-screen {
+    flex: 1;
+    min-height: 0;
+}
+
+.match-story-anchor {
+    font-size: 0.76rem;
+    letter-spacing: 0.01em;
+    color: rgba(248, 250, 252, 0.72);
+}
+
+.match-story-track-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.match-story-block.track-screen .match-story-track-meta {
+    margin-top: 6px;
+    margin-bottom: 6px;
+}
+
+.match-story-block.track-screen .match-track-bars {
+    margin-top: auto;
+    margin-bottom: auto;
+}
+
+.match-story-track-title {
+    font-size: 1.2rem;
+    font-weight: 720;
+    line-height: 1.15;
+    color: var(--text-primary);
+}
+
+.match-story-track-artist {
+    font-size: 0.98rem;
+    font-weight: 560;
+    color: rgba(248, 250, 252, 0.9);
+}
+
+.match-story-track-wrap .stats-panel {
+    background: transparent;
+    border: 0;
+    padding: 0;
+}
+
+.match-story-track-wrap .stats-header {
+    display: none;
+}
+
+/*This is for the bars on the matching song screen*/
+
+.match-track-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+}
+
+.match-track-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 0px;
+}
+
+.match-track-fill {
+    min-height: 75px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 10px;
+    font-size: 2.0rem;
+    font-weight: 700;
+    line-height: 1;
+    color: rgba(248, 250, 252, 0.95);
+}
+
+.match-track-fill.her {
+    background: linear-gradient(90deg, rgba(246, 80, 143, 0.98), rgba(249, 154, 112, 0.92));
+}
+
+.match-track-fill.you {
+    background: rgba(35, 42, 55, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.match-track-label {
+    font-size: 0.86rem;
+    color: rgba(248, 250, 252, 0.9);
+}
+
+.match-story-legend {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.86rem;
+    color: rgba(248, 250, 252, 0.84);
+}
+
+.match-story-genre {
+    margin-top: 8px;
+    font-size: 3rem;
+    line-height: 1;
+    letter-spacing: -0.04em;
+    font-weight: 760;
+    color: var(--text-primary);
+}
+
+.match-story-note {
+    font-size: 0.7rem;
+    color: rgba(148, 163, 184, 0.85);
+}
+
+.match-story-big-number {
+    font-size: 3.05rem;
+    line-height: 0.95;
+    letter-spacing: -0.05em;
+    font-weight: 790;
+    color: var(--text-primary);
+}
+
+.match-story-stats-copy {
+    font-size: 0.86rem;
+    line-height: 1.45;
+    color: rgba(248, 250, 252, 0.86);
+}
+
+.match-story-identity {
+    font-size: 1.9rem;
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+    font-weight: 770;
+    color: var(--text-primary);
+}
+
+.match-story-cloud {
+    position: relative;
+    min-height: 280px;
+    width: 100%;
+}
+
+.match-cloud-item {
+    position: absolute;
+    max-width: 72%;
+}
+
+.match-cloud-item.flag {
+    right: 4px;
+    top: 20px;
+    text-align: right;
+}
+
+.match-cloud-item.quirk {
+    left: 0;
+    bottom: 8px;
+    text-align: left;
+}
+
+.match-cloud-key {
+    font-size: 4.1rem;
+    line-height: 0.95;
+    letter-spacing: -0.04em;
+    font-weight: 790;
+    color: rgba(248, 250, 252, 0.98);
+}
+
+.match-cloud-item.quirk .match-cloud-key {
+    font-size: 3.2rem;
+}
+
+.match-cloud-text {
+    margin-top: 6px;
+    font-size: 0.9rem;
+    line-height: 1.35;
+    color: rgba(248, 250, 252, 0.9);
+}

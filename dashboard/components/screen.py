@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import base64
 from dataclasses import dataclass
 from functools import lru_cache
 from html import escape
+import mimetypes
 from pathlib import Path
 import re
 
@@ -56,6 +58,7 @@ def render_phone_screens(
         >
         <style>
             {_load_mobile_component_css()}
+            {_load_dashboard_component_css()}
             body {{
                 margin: 0;
                 background: transparent;
@@ -209,7 +212,7 @@ def render_phone_screens(
             }}
 
             .screen-top-half {{
-                min-height: 206px;
+                min-height: 228px;
                 padding: 8px 4px 10px;
                 display: flex;
                 flex-direction: column;
@@ -217,10 +220,10 @@ def render_phone_screens(
             }}
 
             .match-image-placeholder {{
-                width: 126px;
-                height: 126px;
+                width: 100%;
+                height: 196px;
                 margin: 0 auto;
-                border-radius: 28px;
+                border-radius: 24px;
                 border: 1px solid rgba(255, 255, 255, 0.14);
                 background: rgba(255, 255, 255, 0.06);
                 display: grid;
@@ -229,6 +232,14 @@ def render_phone_screens(
                 color: rgba(248, 250, 252, 0.7);
                 font-size: 0.9rem;
                 letter-spacing: 0.03em;
+                overflow: hidden;
+            }}
+
+            .match-image-placeholder img {{
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+                display: block;
             }}
 
             .top-half-meta {{
@@ -860,6 +871,7 @@ def render_phone_concept_card(
         >
         <style>
             {_load_mobile_component_css()}
+            {_load_dashboard_component_css()}
             body {{
                 margin: 0;
                 background: transparent;
@@ -1063,10 +1075,10 @@ def render_phone_concept_card(
             }}
 
             .match-image-placeholder {{
-                width: 108px;
-                height: 108px;
+                width: 100%;
+                height: 152px;
                 margin: 0 auto;
-                border-radius: 22px;
+                border-radius: 20px;
                 border: 1px solid rgba(255, 255, 255, 0.14);
                 background: rgba(255, 255, 255, 0.06);
                 display: grid;
@@ -1075,6 +1087,14 @@ def render_phone_concept_card(
                 color: rgba(248, 250, 252, 0.7);
                 font-size: 0.82rem;
                 letter-spacing: 0.03em;
+                overflow: hidden;
+            }}
+
+            .match-image-placeholder img {{
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+                display: block;
             }}
 
             .top-half-meta {{
@@ -1302,6 +1322,7 @@ def _build_screen_markup(
     safe_body = escape(screen.body)
     safe_footer = escape(screen.footer)
     safe_match_alias = escape(match_alias)
+    image_markup = _build_match_image_markup(match_alias)
     safe_score = f"{max(0.0, min(1.0, match_score)):.0%}"
     body_markup = f'<div class="screen-body">{safe_body}</div>' if safe_body else ""
     footer_markup = (
@@ -1311,7 +1332,7 @@ def _build_screen_markup(
     return f"""
     <section class="tap-screen{" active" if index == 0 else ""}">
         <div class="screen-top-half">
-            <div class="match-image-placeholder">placeholder</div>
+            <div class="match-image-placeholder">{image_markup}</div>
             <div class="top-half-meta">
                 <span class="top-half-match">{safe_match_alias}</span>
                 <span class="top-half-score">{safe_score}</span>
@@ -1515,6 +1536,44 @@ def _build_compact_phone_overrides() -> str:
 def _load_mobile_component_css() -> str:
     style_path = Path(__file__).resolve().parents[2] / "mobile-demo" / "style.css"
     return style_path.read_text(encoding="utf-8")
+
+
+def _load_dashboard_component_css() -> str:
+    style_path = Path(__file__).resolve().parents[1] / "styles.css"
+    if not style_path.exists():
+        return ""
+    return style_path.read_text(encoding="utf-8")
+
+
+def _build_match_image_markup(match_alias: str) -> str:
+    data_uri = _resolve_match_image_data_uri(match_alias)
+    if data_uri:
+        return (
+            f'<img src="{data_uri}" alt="{escape(match_alias)} profile photo" '
+            'loading="eager" decoding="async" />'
+        )
+    return "placeholder"
+
+
+@lru_cache(maxsize=32)
+def _resolve_match_image_data_uri(match_alias: str) -> str:
+    assets_dir = Path(__file__).resolve().parents[1] / "assets" / "matches"
+    alias_slug = _slugify(match_alias)
+    candidates = [
+        assets_dir / f"{alias_slug}.jpg",
+        assets_dir / f"{alias_slug}.jpeg",
+        assets_dir / f"{alias_slug}.png",
+        assets_dir / f"{alias_slug}.webp",
+    ]
+    for candidate in candidates:
+        if not candidate.exists():
+            continue
+        mime_type, _ = mimetypes.guess_type(candidate.name)
+        if not mime_type:
+            mime_type = "image/jpeg"
+        encoded = base64.b64encode(candidate.read_bytes()).decode("ascii")
+        return f"data:{mime_type};base64,{encoded}"
+    return ""
 
 
 def _slugify(value: str) -> str:

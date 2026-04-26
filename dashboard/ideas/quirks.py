@@ -14,6 +14,15 @@ class QuirksPayload:
     green_flags: list[str]
     selected_quirks: list[str]
     match_quirks: list[str]
+    green_flag_items: list["QuirkDisplayItem"]
+    selected_quirk_items: list["QuirkDisplayItem"]
+    match_quirk_items: list["QuirkDisplayItem"]
+
+
+@dataclass(frozen=True)
+class QuirkDisplayItem:
+    key: str
+    text: str
 
 
 class QuirksIdea(ImplementationIdea):
@@ -28,44 +37,118 @@ class QuirksIdea(ImplementationIdea):
     def build(
         self, context: PairContext, config: DashboardConfig = CONFIG
     ) -> QuirksPayload:
+        del config
         green_flags = []
         selected_quirks = []
         match_quirks = []
+        green_flag_items: list[QuirkDisplayItem] = []
+        selected_quirk_items: list[QuirkDisplayItem] = []
+        match_quirk_items: list[QuirkDisplayItem] = []
 
         HIGH_THRESH = 0.85
         LOW_THRESH = 0.15
+        HIGH_AVG_THRES = 0.7
+        LOW_AVG_THRES = 0.3
 
         for _, row in context.group_rankings.iterrows():
             s_score = row["selected_score"]
             m_score = row["match_score"]
-            label = row["label"]
+            label = str(row["label"])
+            key = self._normalize_key(label)
 
             # Shared Extremes (Green Flags)
             if s_score >= HIGH_THRESH and m_score >= HIGH_THRESH:
                 green_flags.append(f"Way above average on {label}")
+                green_flag_items.append(
+                    QuirkDisplayItem(
+                        key=key,
+                        text=f"You both vibe on high {key.lower()} songs",
+                    )
+                )
             elif s_score <= LOW_THRESH and m_score <= LOW_THRESH:
                 green_flags.append(f"Both heavily lean away from {label}")
+                green_flag_items.append(
+                    QuirkDisplayItem(
+                        key=key,
+                        text=f"You both lean away from {key.lower()} songs",
+                    )
+                )
 
             # Quirks (One is extreme, the other is normal/opposite)
-            elif s_score >= HIGH_THRESH and m_score < 0.7:
+            elif s_score >= HIGH_THRESH and m_score < HIGH_AVG_THRES:
                 selected_quirks.append(f"Obsessed with {label}")
-            elif s_score <= LOW_THRESH and m_score > 0.3:
+                selected_quirk_items.append(
+                    QuirkDisplayItem(
+                        key=key,
+                        text=f"You gravitate hard toward {key.lower()} songs",
+                    )
+                )
+            elif s_score <= LOW_THRESH and m_score > LOW_AVG_THRES:
                 selected_quirks.append(f"Averse to {label}")
+                selected_quirk_items.append(
+                    QuirkDisplayItem(
+                        key=key,
+                        text=f"You gravitate away from {key.lower()} songs",
+                    )
+                )
 
-            if m_score >= HIGH_THRESH and s_score < 0.7:
+            if m_score >= HIGH_THRESH and s_score < HIGH_AVG_THRES:
                 match_quirks.append(f"Obsessed with {label}")
-            elif m_score <= LOW_THRESH and s_score > 0.3:
+                match_quirk_items.append(
+                    QuirkDisplayItem(
+                        key=key,
+                        text=f"They gravitate hard toward {key.lower()} songs",
+                    )
+                )
+            elif m_score <= LOW_THRESH and s_score > LOW_AVG_THRES:
                 match_quirks.append(f"Averse to {label}")
+                match_quirk_items.append(
+                    QuirkDisplayItem(
+                        key=key,
+                        text=f"They gravitate away from {key.lower()} songs",
+                    )
+                )
+
+        if not green_flags:
+            green_flags = ["No extremely unified traits"]
+            green_flag_items = [
+                QuirkDisplayItem(
+                    key="Energy",
+                    text="You both vibe on high energy songs",
+                )
+            ]
+        if not selected_quirks:
+            selected_quirks = ["Pretty well-rounded listener"]
+            selected_quirk_items = [
+                QuirkDisplayItem(
+                    key="Mood",
+                    text="You gravitate away from moody ones",
+                )
+            ]
+        if not match_quirks:
+            match_quirks = ["Pretty well-rounded listener"]
+            match_quirk_items = [
+                QuirkDisplayItem(
+                    key="Mood",
+                    text="They gravitate away from moody ones",
+                )
+            ]
 
         return QuirksPayload(
-            green_flags=green_flags if green_flags else ["No extremely unified traits"],
-            selected_quirks=selected_quirks
-            if selected_quirks
-            else ["Pretty well-rounded listener"],
-            match_quirks=match_quirks
-            if match_quirks
-            else ["Pretty well-rounded listener"],
+            green_flags=green_flags,
+            selected_quirks=selected_quirks,
+            match_quirks=match_quirks,
+            green_flag_items=green_flag_items,
+            selected_quirk_items=selected_quirk_items,
+            match_quirk_items=match_quirk_items,
         )
+
+    @staticmethod
+    def _normalize_key(label: str) -> str:
+        cleaned = " ".join(str(label).replace("_", " ").split()).strip()
+        if not cleaned:
+            return "Taste"
+        return cleaned.title()
 
     def render(
         self,

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import math
 import re
 from dataclasses import dataclass
@@ -11,10 +12,7 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-from dashboard.components.screen import Screen, render_phone_concept_card
-
-# Legacy import preserved for reference during the redesign.
-# from dashboard.components.screen import render_phone_screens
+from dashboard.components.screen import Screen, render_phone_screens
 from dashboard.config import CONFIG, DashboardConfig
 from dashboard.ideas.match_dna import MatchDNAIdea
 from dashboard.ideas.new_radar import NewRadarIdea
@@ -51,6 +49,16 @@ class ConceptCardSpec:
     height: int
     phone_height: int
     phone_width: int
+
+
+MATCH_SCREENS: tuple[str, ...] = ("top_tracks", "genre", "stats", "attributes")
+SHOWCASE_MATCH_NAMES: tuple[str, ...] = (
+    "Grusha",
+    "Roxana",
+    "Rachel",
+    "Winnie",
+    "Annie",
+)
 
 
 @lru_cache(maxsize=1)
@@ -1036,6 +1044,171 @@ def _build_stats_screens(
     ]
 
 
+def _build_match_story_track_visual(
+    *,
+    snapshot: PairHistorySnapshot | None,
+) -> str:
+    track_title = _title_case(
+        snapshot.shared_track_name if snapshot else None, "Shades Of A Man"
+    )
+    artist_name = _title_case(
+        snapshot.shared_track_artist if snapshot else None,
+        "Khruangbin",
+    )
+    her_count = (
+        snapshot.shared_track_match_count
+        if snapshot and snapshot.shared_track_match_count > 0
+        else 72
+    )
+    them_count = (
+        snapshot.shared_track_selected_count
+        if snapshot and snapshot.shared_track_selected_count > 0
+        else 50
+    )
+    ceiling = max(her_count, them_count, 1)
+    her_width = (her_count / ceiling) * 100 if her_count > 0 else 0
+    you_width = (them_count / ceiling) * 100 if them_count > 0 else 0
+    return f"""
+    <div class="match-story-block track-screen">
+        <div class="match-story-anchor">You've both had this on repeat</div>
+        <div class="match-story-track-meta">
+            <div class="match-story-track-title">{escape(track_title)}</div>
+            <div class="match-story-track-artist">{escape(artist_name)}</div>
+        </div>
+        <div class="match-track-bars">
+            <div class="match-track-row">
+                <div class="match-track-fill her" style="width: {her_width:.1f}%">{her_count}</div>
+                <span class="match-track-label">Her</span>
+            </div>
+            <div class="match-track-row">
+                <div class="match-track-fill you" style="width: {you_width:.1f}%">{them_count}</div>
+                <span class="match-track-label">You</span>
+            </div>
+        </div>
+    </div>
+    """
+
+
+def _build_match_story_genre_visual(
+    *,
+    snapshot: PairHistorySnapshot | None,
+) -> str:
+    genre_name = _title_case(snapshot.shared_genre_name if snapshot else None, "Blues")
+    # TODO: add multiple genres
+    return f"""
+    <div class="match-story-block">
+        <div class="match-story-anchor">Some concerts you would both enjoy</div>
+        <div class="match-story-genre">{escape(genre_name)}</div>
+    </div>
+    """
+
+
+def _build_match_story_stats_visual(
+    *,
+    snapshot: PairHistorySnapshot | None,
+    match_alias: str,
+) -> str:
+    listened_minutes = (
+        snapshot.match_minutes if snapshot and snapshot.match_minutes > 0 else 11_878
+    )
+    listened_days = max(listened_minutes / (60 * 24), 0.0)
+    return f"""
+    <div class="match-story-block">
+        <div class="match-story-anchor">We really hope you like long road trips</div>
+        <div class="match-story-big-number">{listened_minutes:,}</div>
+        <div class="match-story-stats-copy">
+            {escape(match_alias)} listened for {listened_minutes:,} minutes.
+            That's {listened_days:.1f} days.
+        </div>
+    </div>
+    """
+
+
+def _build_match_story_attributes_visual(
+    *,
+    context: PairContext,
+    config: DashboardConfig,
+) -> str:
+    quirks_payload = QuirksIdea().build(context, config)
+    top_flag = (
+        quirks_payload.green_flag_items[0] if quirks_payload.green_flag_items else None
+    )
+    selected_quirk = (
+        quirks_payload.selected_quirk_items[0]
+        if quirks_payload.selected_quirk_items
+        else None
+    )
+    flag_key = _short_text(top_flag.key)
+    flag_text = _short_text(top_flag.text)
+    quirk_key = _short_text(selected_quirk.key)
+    quirk_text = _short_text(selected_quirk.text)
+    return f"""
+    <div class="match-story-block">
+        <div class="match-story-anchor">Tastes like yours can't be defined.</div>
+        <div class="match-story-cloud">
+            <div class="match-cloud-item flag">
+                <div class="match-cloud-key">{escape(flag_key)}</div>
+                <div class="match-cloud-text">{escape(flag_text)}</div>
+            </div>
+            <div class="match-cloud-item quirk">
+                <div class="match-cloud-key">{escape(quirk_key)}</div>
+                <div class="match-cloud-text">{escape(quirk_text)}</div>
+            </div>
+        </div>
+    </div>
+    """
+
+
+def _build_match_story_screens(
+    context: PairContext,
+    config: DashboardConfig,
+    display_match_alias: str,
+) -> list[Screen]:
+    snapshot = _compute_pair_history_snapshot(
+        selected_user_id=context.selected_user_id,
+        match_user_id=context.match_user_id,
+        artifact_root=str(CONFIG.paths.artifact_root),
+    )
+    return [
+        Screen(
+            eyebrow="",
+            title="",
+            subtitle="",
+            visual_html=_build_match_story_track_visual(snapshot=snapshot),
+        ),
+        Screen(
+            eyebrow="",
+            title="",
+            subtitle="",
+            visual_html=_build_match_story_genre_visual(snapshot=snapshot),
+        ),
+        Screen(
+            eyebrow="",
+            title="",
+            subtitle="",
+            visual_html=_build_match_story_stats_visual(
+                snapshot=snapshot,
+                match_alias=display_match_alias,
+            ),
+        ),
+        Screen(
+            eyebrow="",
+            title="",
+            subtitle="",
+            visual_html=_build_match_story_attributes_visual(
+                context=context,
+                config=config,
+            ),
+        ),
+    ]
+
+
+def _select_showcase_match_alias(match_user_id: int) -> str:
+    digest = hashlib.md5(str(match_user_id).encode("utf-8"), usedforsecurity=False)
+    index = int(digest.hexdigest(), 16) % len(SHOWCASE_MATCH_NAMES)
+    return SHOWCASE_MATCH_NAMES[index]
+
+
 def _build_match_reveal_screens(
     context: PairContext,
     config: DashboardConfig,
@@ -1213,74 +1386,25 @@ def render_implementation_ideas_grid(
     config: DashboardConfig = CONFIG,
 ) -> None:
     _inject_showcase_styles()
+    display_match_alias = _select_showcase_match_alias(context.match_user_id)
+    screens = _build_match_story_screens(
+        context,
+        config,
+        display_match_alias=display_match_alias,
+    )
+    # Keep this as a single flow to match the 1-phone, 4-screen interaction.
+    if len(screens) != len(MATCH_SCREENS):
+        raise ValueError("Match story must include exactly four screens.")
 
-    concepts = _build_concept_specs(context, config)
-
-    columns = st.columns(3, gap="medium")
-    for column, concept in zip(columns, concepts, strict=False):
-        with column:
-            render_phone_concept_card(
-                concept_key=concept.concept_key,
-                card_label=concept.card_label,
-                card_description=concept.card_description,
-                selected_alias=context.selected_alias,
-                match_alias=context.match_alias,
-                match_score=context.predicted_similarity,
-                screens=concept.screens,
-                height=concept.height,
-                phone_height=concept.phone_height,
-                phone_width=concept.phone_width,
-            )
-
-
-def _build_concept_specs(
-    context: PairContext,
-    config: DashboardConfig,
-) -> list[ConceptCardSpec]:
-    return [
-        _build_statistics_concept_spec(context, config),
-        ConceptCardSpec(
-            concept_key=f"match-reveal-{context.selected_user_id}-{context.match_user_id}",
-            card_label="Match Reveal",
-            card_description=(
-                "Presents shared traits and memorable quirks instead of abstract "
-                "confidence language."
-            ),
-            screens=_build_match_reveal_screens(context, config),
-            height=920,
-            phone_height=675,
-            phone_width=304,
-        ),
-        ConceptCardSpec(
-            concept_key=f"visualizations-{context.selected_user_id}-{context.match_user_id}",
-            card_label="Visualizations",
-            card_description=(
-                "Lets the user inspect overall shape, feature mix, and productive "
-                "difference."
-            ),
-            screens=_build_visualization_screens(context, config),
-            height=920,
-            phone_height=675,
-            phone_width=304,
-        ),
-    ]
-
-
-def _build_statistics_concept_spec(
-    context: PairContext,
-    config: DashboardConfig,
-) -> ConceptCardSpec:
-    return ConceptCardSpec(
-        concept_key=f"statistics-{context.selected_user_id}-{context.match_user_id}",
-        card_label="Shared Proof",
-        card_description=(
-            "A one tap story arc: starting with shared tracks, widened to context "
-            "via genres, then close on listening depth."
-        ),
-        screens=_build_stats_screens(context, config),
-        height=900,
-        phone_height=666,
-        phone_width=300,
+    render_phone_screens(
+        concept_key=f"match-story-{context.selected_user_id}-{context.match_user_id}",
+        selected_alias=context.selected_alias,
+        match_alias=display_match_alias,
+        match_score=context.predicted_similarity,
+        screens=screens,
+        height=790,
+        phone_width=355,
+        compact=False,
     )
 
 
