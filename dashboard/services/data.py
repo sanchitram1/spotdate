@@ -361,7 +361,9 @@ def _build_demo_edgelist(raw_features: pd.DataFrame) -> pd.DataFrame:
         for match_index, user_match in enumerate(user_ids):
             if anchor_index == match_index:
                 continue
-            similarity = float((similarity_matrix[anchor_index, match_index] + 1.0) / 2.0)
+            similarity = float(
+                (similarity_matrix[anchor_index, match_index] + 1.0) / 2.0
+            )
             rows.append(
                 {
                     "user_anchor": user_anchor,

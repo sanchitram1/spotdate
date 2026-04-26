@@ -81,7 +81,9 @@ def load_model_bundle(
             model_key, datasets.model_matrix
         )
     else:
-        spec, embeddings = compute_embeddings_for_model(model_key, datasets.model_matrix)
+        spec, embeddings = compute_embeddings_for_model(
+            model_key, datasets.model_matrix
+        )
 
     similarity_matrix = cosine_similarity(embeddings)
     np.fill_diagonal(similarity_matrix, -np.inf)

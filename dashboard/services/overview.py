@@ -59,12 +59,16 @@ def build_runtime_health_rows(
         },
         {
             "Check": "Future alignment reference",
-            "Status": "Ready" if status.full_edgelist_available or demo_mode else "Missing",
+            "Status": "Ready"
+            if status.full_edgelist_available or demo_mode
+            else "Missing",
             "Detail": f"{summary.recommendation_count} recommendations generated for the selected user.",
         },
         {
             "Check": "Model artifacts",
-            "Status": "Ready" if status.experiments_available or demo_mode else "Missing",
+            "Status": "Ready"
+            if status.experiments_available or demo_mode
+            else "Missing",
             "Detail": (
                 ", ".join(status.available_model_keys)
                 if status.available_model_keys and not demo_mode
