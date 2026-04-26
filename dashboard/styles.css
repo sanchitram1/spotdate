@@ -77,7 +77,7 @@
     align-items: center;
     justify-content: center;
     padding: 4px 10px;
-    font-size: 2.0rem;
+    font-size: 2    .0rem;
     font-weight: 700;
     line-height: 1;
     color: rgba(248, 250, 252, 0.95);
@@ -104,10 +104,45 @@
     color: rgba(248, 250, 252, 0.84);
 }
 
+.match-story-genre-hint {
+    margin-top: 4px;
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: rgba(148, 163, 184, 0.95);
+}
+
+.match-story-genre-stack {
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.4rem;
+}
+
+.match-story-genre-line {
+    font-size: 2.35rem;
+    line-height: 1.12;
+    letter-spacing: -0.04em;
+    font-weight: 760;
+    color: var(--text-primary);
+}
+
+.match-story-genre-line.line-1 {
+    font-size: 2.6rem;
+}
+
+.match-story-genre-line.line-2,
+.match-story-genre-line.line-3 {
+    font-size: 1.85rem;
+    color: rgba(248, 250, 252, 0.94);
+}
+
+/* Legacy single class if referenced elsewhere */
 .match-story-genre {
     margin-top: 8px;
     font-size: 3rem;
-    line-height: 1;
+    line-height: 1.15;
     letter-spacing: -0.04em;
     font-weight: 760;
     color: var(--text-primary);
@@ -148,36 +183,40 @@
 
 .match-cloud-item {
     position: absolute;
-    max-width: 72%;
+    max-width: 78%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
 }
 
 .match-cloud-item.flag {
-    right: 4px;
+    right: 0;
     top: 20px;
-    text-align: right;
 }
 
 .match-cloud-item.quirk {
     left: 0;
     bottom: 8px;
-    text-align: left;
 }
 
 .match-cloud-key {
-    font-size: 4.1rem;
+    font-size: 3.0rem;
     line-height: 0.95;
-    letter-spacing: -0.04em;
-    font-weight: 790;
+    letter-spacing: -0.02em;
+    font-weight: 800;
+    text-transform: uppercase;
     color: rgba(248, 250, 252, 0.98);
 }
 
 .match-cloud-item.quirk .match-cloud-key {
-    font-size: 3.2rem;
+    font-size: 2.2rem;
 }
 
 .match-cloud-text {
-    margin-top: 6px;
-    font-size: 0.9rem;
+    margin-top: 8px;
+    font-size: 0.82rem;
     line-height: 1.35;
-    color: rgba(248, 250, 252, 0.9);
+    color: rgba(248, 250, 252, 0.88);
+    max-width: 22ch;
 }

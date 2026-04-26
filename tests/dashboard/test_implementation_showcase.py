@@ -50,3 +50,6 @@ def test_pair_history_snapshot_reads_real_listening_history(alias_catalog) -> No
     assert snapshot.selected_minutes >= 0
     assert snapshot.match_minutes >= 0
     assert snapshot.shared_genre_name or snapshot.shared_artist_name
+    assert len(snapshot.shared_genres_top3) <= 3
+    if snapshot.shared_genre_name and snapshot.shared_genres_top3:
+        assert snapshot.shared_genres_top3[0].name == snapshot.shared_genre_name

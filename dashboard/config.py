@@ -119,7 +119,7 @@ def build_config(repo_root: Path | None = None) -> DashboardConfig:
             file_suffix=".keras",
             summary=(
                 "An unsupervised user encoder that learns compressed taste profiles by "
-                "reconstructing aggregate listening features."
+                "reconstructing listening features."
             ),
         ),
         ModelFamilyConfig(

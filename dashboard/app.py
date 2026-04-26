@@ -454,18 +454,10 @@ def _initials(value: str) -> str:
 
 def render_dashboard_header(context) -> None:
     st.markdown(
-        f"""
+        """
         <div class="dashboard-title-row">
             <div class="dashboard-title-copy">
                 <h1>Spotdate Implementation Ideas</h1>
-            </div>
-            <div class="dashboard-score-pill">
-                <span class="dashboard-score-avatar selected">{_initials(context.selected_alias)}</span>
-                <div class="dashboard-score-copy">
-                    <p class="dashboard-score-value">{max(0.0, min(1.0, context.predicted_similarity)):.0%}</p>
-                    <p class="dashboard-score-label">Pair Score</p>
-                </div>
-                <span class="dashboard-score-avatar match">{_initials(context.match_alias)}</span>
             </div>
         </div>
         """,

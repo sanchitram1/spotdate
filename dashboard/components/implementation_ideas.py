@@ -17,11 +17,20 @@ from dashboard.config import CONFIG, DashboardConfig
 from dashboard.ideas.match_dna import MatchDNAIdea
 from dashboard.ideas.new_radar import NewRadarIdea
 from dashboard.ideas.opposites import OppositesIdea
-from dashboard.ideas.quirks import QuirksIdea
+from dashboard.ideas.quirks import QuirkDisplayItem, QuirksIdea
 from dashboard.types import PairContext
 
 # Legacy imports preserved for reference during the dashboard redesign.
 # from dashboard.ideas.registry import get_implementation_ideas
+
+
+@dataclass(frozen=True)
+class SharedGenreStat:
+    name: str
+    selected_listens: int
+    match_listens: int
+    selected_share: float
+    match_share: float
 
 
 @dataclass(frozen=True)
@@ -31,9 +40,11 @@ class PairHistorySnapshot:
     shared_track_selected_count: int
     shared_track_match_count: int
     shared_artist_name: str | None
+    """First overlapping genre (mirrors `shared_genres_top3[0]` when present)."""
     shared_genre_name: str | None
     shared_genre_selected_share: float
     shared_genre_match_share: float
+    shared_genres_top3: tuple[SharedGenreStat, ...]
     selected_minutes: int
     match_minutes: int
     selected_total_listens: int
@@ -59,6 +70,119 @@ SHOWCASE_MATCH_NAMES: tuple[str, ...] = (
     "Winnie",
     "Annie",
 )
+
+
+# Display-only mapping for Common Chords word-cloud keys.
+# Underlying QuirkDisplayItem.key (from QuirksIdea._normalize_key) is unchanged.
+DISPLAY_LABEL_MAP: dict[str, str] = {
+    "Energy": "Energy",
+    "Mood": "Mood",
+    "Tempo": "Fast",
+    "Night Listening": "Nocturnal",
+    "Genre Breadth": "Range",
+    "Artist Exploration": "Finder",
+    "Underground Lean": "Deep",
+    "Loyalty": "Loyalty",
+}
+
+
+# Editable copy for the Common Chords word-cloud screen, keyed by either:
+#   - the raw normalized label (e.g. "Tempo", "Underground Lean"), OR
+#   - the mapped display label (e.g. "Fast", "Deep").
+# The renderer tries the display key first, then the raw key, then falls back
+# to the QuirkDisplayItem's own .text.
+QUIRK_MESSAGING: dict[str, dict[str, str]] = {
+    "Energy": {
+        "flag": "You both live for high-octane anthems.",
+        "quirk": "You thrive on high energy, while they keep it chill.",
+    },
+    "Mood": {
+        "flag": "You're both in sync with the emotional highs and lows.",
+        "quirk": "You gravitate toward moody tracks; they prefer the sunshine.",
+    },
+    "Tempo": {
+        "flag": "You've found a shared heart-rate in your playlists.",
+        "quirk": "You're racing at 128 BPM; they're more of a lo-fi speed.",
+    },
+    "Fast": {
+        "flag": "You've found a shared heart-rate in your playlists.",
+        "quirk": "You're racing at 128 BPM; they're more of a lo-fi speed.",
+    },
+    "Nocturnal": {
+        "flag": "You're both members of the midnight listening club.",
+        "quirk": "You're a late-night crate digger; they're an early bird.",
+    },
+    "Range": {
+        "flag": "Your sonic palette is equally vast and varied.",
+        "quirk": "You're a genre-hopper; they've mastered a specific sound.",
+    },
+    "Finder": {
+        "flag": "You're both always hunting for the next big sound.",
+        "quirk": "You're exploring the new frontier; they stick to the classics.",
+    },
+    "Deep": {
+        "flag": "You both find the best music far off the beaten path.",
+        "quirk": "You're deep in the underground; they love a mainstage hit.",
+    },
+    "Depth": {
+        "flag": "You both find the best music far off the beaten path.",
+        "quirk": "You're deep in the underground; they love a mainstage hit.",
+    },
+    "Loyalty": {
+        "flag": "When you find an artist you love, you both stay committed.",
+        "quirk": "You're a dedicated superfan; they prefer a casual rotation.",
+    },
+}
+
+
+# Preferred fallback raw keys (in order) used when one side of the
+# Common Chords screen has no real item. Picker walks this list and skips any
+# entry whose mapped display label collides with the other side's display key.
+QUIRK_FALLBACK_KEY_ORDER: tuple[str, ...] = (
+    "Energy",
+    "Mood",
+    "Genre Breadth",
+    "Artist Exploration",
+    "Loyalty",
+    "Night Listening",
+    "Tempo",
+    "Underground Lean",
+)
+
+
+def _pick_non_colliding_fallback_key(taken_display: str) -> str:
+    taken_lower = taken_display.lower()
+    for raw_key in QUIRK_FALLBACK_KEY_ORDER:
+        display = DISPLAY_LABEL_MAP.get(raw_key, raw_key)
+        if display.lower() != taken_lower:
+            return raw_key
+    return QUIRK_FALLBACK_KEY_ORDER[0]
+
+
+def _resolve_quirk_display(
+    item: QuirkDisplayItem | None,
+    role: str,
+    *,
+    fallback_key: str,
+    fallback_text: str,
+) -> tuple[str, str]:
+    """Return (displayed_key, descriptive_text) for the Common Chords screen.
+
+    - displayed_key is run through DISPLAY_LABEL_MAP (defaults to the original
+      .title() key when missing).
+    - descriptive_text is sourced from QUIRK_MESSAGING by display key or raw
+      key; falls back to the item's own .text if neither lookup succeeds.
+    """
+    raw_key = item.key if item is not None else fallback_key
+    display_key = DISPLAY_LABEL_MAP.get(raw_key, raw_key)
+    messaging = QUIRK_MESSAGING.get(display_key) or QUIRK_MESSAGING.get(raw_key)
+    if messaging and role in messaging:
+        text = messaging[role]
+    elif item is not None:
+        text = item.text
+    else:
+        text = fallback_text
+    return display_key, text
 
 
 @lru_cache(maxsize=1)
@@ -218,9 +342,6 @@ def _inject_showcase_styles() -> None:
 
             .showcase-card-head,
             .showcase-card-foot,
-            .model-process-shell,
-            .model-stage,
-            .model-output-list,
             .model-summary-shell {{
                 border: 1px solid rgba(255, 255, 255, 0.08);
                 background:
@@ -233,7 +354,6 @@ def _inject_showcase_styles() -> None:
 
             .showcase-card-head,
             .showcase-card-foot,
-            .model-process-shell,
             .model-summary-shell {{
                 border-radius: 24px;
             }}
@@ -295,7 +415,6 @@ def _inject_showcase_styles() -> None:
             }}
 
             .model-process-shell {{
-                padding: 1rem 1.05rem 1.15rem;
                 margin-top: 1rem;
             }}
 
@@ -303,13 +422,13 @@ def _inject_showcase_styles() -> None:
                 display: grid;
                 grid-template-columns: minmax(0, 1fr) 54px minmax(0, 1fr) 54px minmax(0, 1.2fr);
                 gap: 16px;
-                align-items: center;
+                align-items: start;
                 margin-top: 1rem;
             }}
+       
 
             .model-stage {{
-                border-radius: 22px;
-                padding: 1.1rem 1rem;
+                padding: 0;
                 min-height: 210px;
             }}
 
@@ -381,58 +500,10 @@ def _inject_showcase_styles() -> None:
                 display: flex;
                 align-items: center;
                 justify-content: center;
+                align-self: center;
                 color: rgba(248, 250, 252, 0.68);
                 font-size: 2.2rem;
                 line-height: 1;
-            }}
-
-            .model-output-list {{
-                border-radius: 22px;
-                padding: 1rem;
-                display: flex;
-                flex-direction: column;
-                gap: 0.85rem;
-                min-height: 210px;
-            }}
-
-            .model-output-row {{
-                display: flex;
-                align-items: flex-start;
-                gap: 0.8rem;
-                padding-bottom: 0.85rem;
-                border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-            }}
-
-            .model-output-row:last-child {{
-                padding-bottom: 0;
-                border-bottom: 0;
-            }}
-
-            .model-output-icon {{
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                width: 50px;
-                height: 50px;
-                border-radius: 16px;
-                background: rgba(255, 255, 255, 0.08);
-                border: 1px solid rgba(255, 255, 255, 0.08);
-                font-size: 1.35rem;
-            }}
-
-            .model-output-title {{
-                margin: 0 0 0.22rem 0;
-                font-size: 1rem;
-                line-height: 1.2;
-                color: var(--text-primary);
-                text-transform: uppercase;
-            }}
-
-            .model-output-body {{
-                margin: 0;
-                color: rgba(248, 250, 252, 0.72);
-                line-height: 1.45;
-                font-size: 0.92rem;
             }}
 
             .model-summary-shell {{
@@ -479,16 +550,100 @@ def _inject_showcase_styles() -> None:
     )
 
 
-@st.cache_data(ttl=3600)
-def _compute_pair_history_snapshot(
+def _parse_duration_minutes(raw_value: str | None) -> int:
+    if not raw_value:
+        return 0
+    try:
+        return max(0, int(float(raw_value) / 60000))
+    except ValueError:
+        return 0
+
+
+def _ingest_past_listening_row(
+    row: dict[str, str | None],
+    *,
     selected_user_id: str,
     match_user_id: str,
-    artifact_root: str,
-) -> PairHistorySnapshot | None:
-    history_path = Path(artifact_root) / "data" / "past_listening_history.csv"
-    if not history_path.exists():
-        return None
+    selected_tracks: dict[tuple[str, str], int],
+    match_tracks: dict[tuple[str, str], int],
+    selected_artists: dict[str, int],
+    match_artists: dict[str, int],
+    selected_genres: dict[str, int],
+    match_genres: dict[str, int],
+) -> tuple[int, int, int, int]:
+    """Update aggregates for one row. Returns deltas (d_sel_total, d_match, d_sel_min, d_match_min)."""
+    user_id = row.get("user_id")
+    if user_id is None:
+        return 0, 0, 0, 0
+    user_id = str(user_id).strip()
 
+    d_sel_minutes = 0
+    d_match_minutes = 0
+    d_sel_total = 0
+    d_match_total = 0
+
+    if user_id == selected_user_id:
+        d_sel_total = 1
+        track_name = (row.get("track_name") or "").strip()
+        artist_name = (row.get("artist_name") or "").strip()
+        genre_name = (row.get("genre") or "").strip()
+
+        if track_name:
+            key = (track_name, artist_name)
+            selected_tracks[key] = selected_tracks.get(key, 0) + 1
+        if artist_name:
+            selected_artists[artist_name] = selected_artists.get(artist_name, 0) + 1
+        if genre_name:
+            selected_genres[genre_name] = selected_genres.get(genre_name, 0) + 1
+        d_sel_minutes = _parse_duration_minutes(
+            str(row.get("duration_ms")) if row.get("duration_ms") is not None else None
+        )
+    elif user_id == match_user_id:
+        d_match_total = 1
+        track_name = (row.get("track_name") or "").strip()
+        artist_name = (row.get("artist_name") or "").strip()
+        genre_name = (row.get("genre") or "").strip()
+
+        if track_name:
+            key = (track_name, artist_name)
+            match_tracks[key] = match_tracks.get(key, 0) + 1
+        if artist_name:
+            match_artists[artist_name] = match_artists.get(artist_name, 0) + 1
+        if genre_name:
+            match_genres[genre_name] = match_genres.get(genre_name, 0) + 1
+        d_match_minutes = _parse_duration_minutes(
+            str(row.get("duration_ms")) if row.get("duration_ms") is not None else None
+        )
+
+    return d_sel_total, d_match_total, d_sel_minutes, d_match_minutes
+
+
+def _pandas_row_to_ingest_dict(
+    srow: pd.Series,
+) -> dict[str, str | None]:
+    raw = srow.to_dict()
+    return {
+        str(k): (None if v is None or (isinstance(v, float) and pd.isna(v)) else str(v))
+        for k, v in raw.items()
+    }
+
+
+def _scan_listening_history_csv(
+    path: Path,
+    selected_user_id: str,
+    match_user_id: str,
+) -> tuple[
+    dict[tuple[str, str], int],
+    dict[tuple[str, str], int],
+    dict[str, int],
+    dict[str, int],
+    dict[str, int],
+    dict[str, int],
+    int,
+    int,
+    int,
+    int,
+]:
     selected_tracks: dict[tuple[str, str], int] = {}
     match_tracks: dict[tuple[str, str], int] = {}
     selected_artists: dict[str, int] = {}
@@ -499,61 +654,137 @@ def _compute_pair_history_snapshot(
     match_minutes = 0
     selected_total = 0
     match_total = 0
-
-    def _parse_minutes(raw_value: str | None) -> int:
-        if not raw_value:
-            return 0
-        try:
-            return max(0, int(float(raw_value) / 60000))
-        except ValueError:
-            return 0
-
-    with history_path.open("r", encoding="utf-8") as handle:
+    with path.open("r", encoding="utf-8") as handle:
         reader = csv.DictReader(handle, delimiter=";")
         for row in reader:
-            user_id = row.get("user_id")
-            if user_id == selected_user_id:
-                selected_total += 1
-                track_name = (row.get("track_name") or "").strip()
-                artist_name = (row.get("artist_name") or "").strip()
-                genre_name = (row.get("genre") or "").strip()
+            ds, dm, s_min, m_min = _ingest_past_listening_row(
+                row,
+                selected_user_id=selected_user_id,
+                match_user_id=match_user_id,
+                selected_tracks=selected_tracks,
+                match_tracks=match_tracks,
+                selected_artists=selected_artists,
+                match_artists=match_artists,
+                selected_genres=selected_genres,
+                match_genres=match_genres,
+            )
+            selected_total += ds
+            match_total += dm
+            selected_minutes += s_min
+            match_minutes += m_min
+    return (
+        selected_tracks,
+        match_tracks,
+        selected_artists,
+        match_artists,
+        selected_genres,
+        match_genres,
+        selected_minutes,
+        match_minutes,
+        selected_total,
+        match_total,
+    )
 
-                if track_name:
-                    selected_tracks[(track_name, artist_name)] = (
-                        selected_tracks.get((track_name, artist_name), 0) + 1
-                    )
-                if artist_name:
-                    selected_artists[artist_name] = (
-                        selected_artists.get(artist_name, 0) + 1
-                    )
-                if genre_name:
-                    selected_genres[genre_name] = selected_genres.get(genre_name, 0) + 1
-                selected_minutes += _parse_minutes(row.get("duration_ms"))
-            elif user_id == match_user_id:
-                match_total += 1
-                track_name = (row.get("track_name") or "").strip()
-                artist_name = (row.get("artist_name") or "").strip()
-                genre_name = (row.get("genre") or "").strip()
 
-                if track_name:
-                    match_tracks[(track_name, artist_name)] = (
-                        match_tracks.get((track_name, artist_name), 0) + 1
-                    )
-                if artist_name:
-                    match_artists[artist_name] = match_artists.get(artist_name, 0) + 1
-                if genre_name:
-                    match_genres[genre_name] = match_genres.get(genre_name, 0) + 1
-                match_minutes += _parse_minutes(row.get("duration_ms"))
-
-    if selected_total == 0 or match_total == 0:
+def _scan_listening_history_pandas(
+    path: Path,
+    selected_user_id: str,
+    match_user_id: str,
+) -> (
+    tuple[
+        dict[tuple[str, str], int],
+        dict[tuple[str, str], int],
+        dict[str, int],
+        dict[str, int],
+        dict[str, int],
+        dict[str, int],
+        int,
+        int,
+        int,
+        int,
+    ]
+    | None
+):
+    """Chunked read with column pruning. Still O(N) over the file, usually faster than csv row loop."""
+    usecols = ("user_id", "track_name", "artist_name", "genre", "duration_ms")
+    chunksize = 200_000
+    selected_tracks: dict[tuple[str, str], int] = {}
+    match_tracks: dict[tuple[str, str], int] = {}
+    selected_artists: dict[str, int] = {}
+    match_artists: dict[str, int] = {}
+    selected_genres: dict[str, int] = {}
+    match_genres: dict[str, int] = {}
+    selected_minutes = 0
+    match_minutes = 0
+    selected_total = 0
+    match_total = 0
+    try:
+        for chunk in pd.read_csv(
+            path,
+            sep=";",
+            usecols=list(usecols),
+            dtype=str,
+            chunksize=chunksize,
+            low_memory=False,
+        ):
+            mask = (chunk["user_id"].astype(str) == selected_user_id) | (
+                chunk["user_id"].astype(str) == match_user_id
+            )
+            sub = chunk.loc[mask]
+            if sub.empty:
+                continue
+            for _, srow in sub.iterrows():
+                row_dict = _pandas_row_to_ingest_dict(srow)
+                ds, dm, s_min, m_min = _ingest_past_listening_row(
+                    row_dict,
+                    selected_user_id=selected_user_id,
+                    match_user_id=match_user_id,
+                    selected_tracks=selected_tracks,
+                    match_tracks=match_tracks,
+                    selected_artists=selected_artists,
+                    match_artists=match_artists,
+                    selected_genres=selected_genres,
+                    match_genres=match_genres,
+                )
+                selected_total += ds
+                match_total += dm
+                selected_minutes += s_min
+                match_minutes += m_min
+    except Exception:
+        # Bad dtypes, parse errors, or missing usecols: fall back to csv.DictReader.
         return None
+    return (
+        selected_tracks,
+        match_tracks,
+        selected_artists,
+        match_artists,
+        selected_genres,
+        match_genres,
+        selected_minutes,
+        match_minutes,
+        selected_total,
+        match_total,
+    )
 
+
+def _build_pair_history_snapshot_from_aggregates(
+    selected_tracks: dict[tuple[str, str], int],
+    match_tracks: dict[tuple[str, str], int],
+    selected_artists: dict[str, int],
+    match_artists: dict[str, int],
+    selected_genres: dict[str, int],
+    match_genres: dict[str, int],
+    selected_minutes: int,
+    match_minutes: int,
+    selected_total: int,
+    match_total: int,
+) -> PairHistorySnapshot:
     shared_tracks = sorted(
         set(selected_tracks).intersection(match_tracks),
         key=lambda item: selected_tracks[item] + match_tracks[item],
         reverse=True,
     )
-    shared_artists = sorted(
+    _shared_artists = sorted(
         set(selected_artists).intersection(match_artists),
         key=lambda item: selected_artists[item] + match_artists[item],
         reverse=True,
@@ -564,8 +795,8 @@ def _compute_pair_history_snapshot(
         reverse=True,
     )
 
-    shared_track_name = None
-    shared_track_artist = None
+    shared_track_name: str | None = None
+    shared_track_artist: str | None = None
     shared_track_selected_count = 0
     shared_track_match_count = 0
     if shared_tracks:
@@ -573,32 +804,71 @@ def _compute_pair_history_snapshot(
         shared_track_selected_count = selected_tracks[shared_tracks[0]]
         shared_track_match_count = match_tracks[shared_tracks[0]]
 
-    shared_genre_name = shared_genres[0] if shared_genres else None
-    selected_genre_share = (
-        selected_genres.get(shared_genre_name, 0) / selected_total
-        if shared_genre_name
-        else 0.0
-    )
-    match_genre_share = (
-        match_genres.get(shared_genre_name, 0) / match_total
-        if shared_genre_name
-        else 0.0
-    )
+    shared_genres_top3: list[SharedGenreStat] = []
+    for g in shared_genres[:3]:
+        s_c = selected_genres.get(g, 0)
+        m_c = match_genres.get(g, 0)
+        shared_genres_top3.append(
+            SharedGenreStat(
+                name=g,
+                selected_listens=s_c,
+                match_listens=m_c,
+                selected_share=(s_c / selected_total) if selected_total else 0.0,
+                match_share=(m_c / match_total) if match_total else 0.0,
+            )
+        )
+    first_genre = shared_genres_top3[0] if shared_genres_top3 else None
+    selected_genre_share = first_genre.selected_share if first_genre else 0.0
+    match_genre_share = first_genre.match_share if first_genre else 0.0
+    shared_genre_name = first_genre.name if first_genre else None
 
     return PairHistorySnapshot(
         shared_track_name=shared_track_name,
         shared_track_artist=shared_track_artist,
         shared_track_selected_count=shared_track_selected_count,
         shared_track_match_count=shared_track_match_count,
-        shared_artist_name=shared_artists[0] if shared_artists else None,
+        shared_artist_name=_shared_artists[0] if _shared_artists else None,
         shared_genre_name=shared_genre_name,
         shared_genre_selected_share=selected_genre_share,
         shared_genre_match_share=match_genre_share,
+        shared_genres_top3=tuple(shared_genres_top3),
         selected_minutes=selected_minutes,
         match_minutes=match_minutes,
         selected_total_listens=selected_total,
         match_total_listens=match_total,
     )
+
+
+@st.cache_data(ttl=3600)
+def _compute_pair_history_snapshot(
+    selected_user_id: str,
+    match_user_id: str,
+    artifact_root: str,
+) -> PairHistorySnapshot | None:
+    history_path = Path(artifact_root) / "data" / "past_listening_history.csv"
+    if not history_path.exists():
+        return None
+
+    # Prefer chunked pandas (narrow columns); fall back to streaming csv.DictReader.
+    agg = _scan_listening_history_pandas(history_path, selected_user_id, match_user_id)
+    if agg is None:
+        agg = _scan_listening_history_csv(history_path, selected_user_id, match_user_id)
+
+    (
+        _,
+        _,
+        _,
+        _,
+        _,
+        _,
+        _,
+        _,
+        selected_total,
+        match_total,
+    ) = agg
+    if selected_total == 0 or match_total == 0:
+        return None
+    return _build_pair_history_snapshot_from_aggregates(*agg)
 
 
 def _percent(value: float | None) -> str:
@@ -997,14 +1267,15 @@ def _build_stats_screens(
         if snapshot
         else _title_case(str(top_signal["label"]), "Shared Taste")
     )
+    has_genre = bool(snapshot and snapshot.shared_genres_top3)
     selected_share = (
         snapshot.shared_genre_selected_share
-        if snapshot and snapshot.shared_genre_name
+        if has_genre
         else float(top_signal["selected_score"])
     )
     match_share = (
         snapshot.shared_genre_match_share
-        if snapshot and snapshot.shared_genre_name
+        if has_genre
         else float(top_signal["match_score"])
     )
     foundation_visual = _build_foundation_visual(
@@ -1093,12 +1364,17 @@ def _build_match_story_genre_visual(
     *,
     snapshot: PairHistorySnapshot | None,
 ) -> str:
-    genre_name = _title_case(snapshot.shared_genre_name if snapshot else None, "Blues")
-    # TODO: add multiple genres
+    if snapshot and snapshot.shared_genres_top3:
+        genre_blocks = "".join(
+            f'<div class="match-story-genre-line line-{index + 1}">{escape(_title_case(stat.name, "Blues"))}</div>'
+            for index, stat in enumerate(snapshot.shared_genres_top3)
+        )
+    else:
+        genre_blocks = f'<div class="match-story-genre-line line-1">{escape(_title_case(None, "Blues"))}</div>'
     return f"""
-    <div class="match-story-block">
+    <div class="match-story-block match-story-genre-screen">
         <div class="match-story-anchor">Some concerts you would both enjoy</div>
-        <div class="match-story-genre">{escape(genre_name)}</div>
+        <div class="match-story-genre-stack">{genre_blocks}</div>
     </div>
     """
 
@@ -1138,10 +1414,39 @@ def _build_match_story_attributes_visual(
         if quirks_payload.selected_quirk_items
         else None
     )
-    flag_key = _short_text(top_flag.key)
-    flag_text = _short_text(top_flag.text)
-    quirk_key = _short_text(selected_quirk.key)
-    quirk_text = _short_text(selected_quirk.text)
+
+    # Defaults match the hardcoded fallbacks in QuirksIdea.build; a real item
+    # always wins because _resolve_quirk_display ignores fallback_key when item
+    # is non-None.
+    flag_raw_key = top_flag.key if top_flag is not None else "Energy"
+    quirk_raw_key = selected_quirk.key if selected_quirk is not None else "Mood"
+
+    flag_display = DISPLAY_LABEL_MAP.get(flag_raw_key, flag_raw_key)
+    quirk_display = DISPLAY_LABEL_MAP.get(quirk_raw_key, quirk_raw_key)
+    if flag_display.lower() == quirk_display.lower():
+        # Only perturb the side that came from a fallback — we never overwrite
+        # a real signal with a synthetic one.
+        if selected_quirk is None:
+            quirk_raw_key = _pick_non_colliding_fallback_key(flag_display)
+        elif top_flag is None:
+            flag_raw_key = _pick_non_colliding_fallback_key(quirk_display)
+
+    flag_key, flag_text = _resolve_quirk_display(
+        top_flag,
+        role="flag",
+        fallback_key=flag_raw_key,
+        fallback_text="You both vibe on high energy songs",
+    )
+    quirk_key, quirk_text = _resolve_quirk_display(
+        selected_quirk,
+        role="quirk",
+        fallback_key=quirk_raw_key,
+        fallback_text="You gravitate away from moody ones",
+    )
+    flag_key = _short_text(flag_key)
+    flag_text = _short_text(flag_text)
+    quirk_key = _short_text(quirk_key)
+    quirk_text = _short_text(quirk_text)
     return f"""
     <div class="match-story-block">
         <div class="match-story-anchor">Tastes like yours can't be defined.</div>
@@ -1430,18 +1735,6 @@ def render_model_explanation_section(
         .iloc[0]
     )
     top_signal = context.group_rankings.iloc[0]
-    quirks_payload = QuirksIdea().build(context, config)
-
-    green_flag = (
-        quirks_payload.green_flags[0]
-        if quirks_payload.green_flags
-        else "Shared habits the pair can immediately recognize."
-    )
-    quirk = (
-        quirks_payload.match_quirks[0]
-        if quirks_payload.match_quirks
-        else "A small taste difference that keeps the match interesting."
-    )
 
     st.markdown(
         f"""
@@ -1459,15 +1752,10 @@ def render_model_explanation_section(
                         Past songs, genres, replay behavior, and exploration patterns become
                         numeric features the model can compare.
                     </p>
-                    <div class="model-avatar-row">
-                        <span class="model-avatar-chip selected">{escape(context.selected_alias[:2].upper())}</span>
-                        <span class="model-avatar-chip match">{escape(context.match_alias[:2].upper())}</span>
-                        <span class="model-avatar-chip neutral">{escape(context.model_label[:2].upper())}</span>
-                    </div>
                 </div>
                 <div class="model-arrow">→</div>
                 <div class="model-stage">
-                    <p class="model-stage-kicker">Model Processing ({escape(context.model_label)})</p>
+                    <p class="model-stage-kicker">Model Processing</p>
                     <div class="model-stage-icons">
                         <span class="model-icon-chip">⚙️</span>
                         <span class="model-icon-chip">🧠</span>
@@ -1481,36 +1769,24 @@ def render_model_explanation_section(
                     </p>
                 </div>
                 <div class="model-arrow">→</div>
-                <div class="model-output-list">
-                    <div class="model-output-row">
-                        <span class="model-output-icon">🎼</span>
-                        <div>
-                            <h3 class="model-output-title">Key Shared Statistics</h3>
-                            <p class="model-output-body">Common songs, genre floor, and listening depth.</p>
-                        </div>
+                <div class="model-stage">
+                    <p class="model-stage-kicker">Model Output</p>
+                    <div class="model-stage-icons">
+                        <span class="model-icon-chip">🎼</span>
+                        <span class="model-icon-chip">📊</span>
+                        <span class="model-icon-chip">💚</span>
                     </div>
-                    <div class="model-output-row">
-                        <span class="model-output-icon">👍</span>
-                        <div>
-                            <h3 class="model-output-title">Specific Connection Points</h3>
-                            <p class="model-output-body">{escape(_short_text(f"{green_flag} {quirk}", 118))}</p>
-                        </div>
-                    </div>
-                    <div class="model-output-row">
-                        <span class="model-output-icon">📊</span>
-                        <div>
-                            <h3 class="model-output-title">Holistic Taste Alignment</h3>
-                            <p class="model-output-body">
-                                Radar, DNA, and contrast visuals make the score legible for non-specialists.
-                            </p>
-                        </div>
-                    </div>
+                    <h3 class="model-stage-title">An abstract score becomes a legible match story</h3>
+                    <p class="model-stage-body">
+                        We display songs, genre floors, and specific feature alignment and disalignment
+                        to present the abstract score as something legible.
+                    </p>
                 </div>
             </div>
             <div class="model-summary-shell">
                 <p>
-                    <strong>Model Input:</strong> music and user history.
-                    <strong> Processing:</strong> {escape(_short_text(family_summary, 112))}
+                    <strong>Model Input:</strong> music and user history.<br>
+                    <strong> Processing:</strong> {escape(_short_text(family_summary, 112))}<br>
                     <strong> Output:</strong> a usable product story built from shared proof, memorable details,
                     and clear visuals.
                 </p>
