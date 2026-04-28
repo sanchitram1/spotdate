@@ -1,12 +1,37 @@
 from __future__ import annotations
 
 from dashboard.config import CONFIG
-from dashboard.services.data import detect_delimiter, preprocess_features
+from dashboard.services.data import (
+    _future_alignment_via_chunks_streaming,
+    detect_delimiter,
+    preprocess_features,
+)
 
 
 def test_detect_delimiter_matches_saved_artifacts() -> None:
     assert detect_delimiter(CONFIG.paths.features_path) == ","
     assert detect_delimiter(CONFIG.paths.full_edgelist_path) == ","
+
+
+def test_future_alignment_chunk_scan_filters_to_anchor_and_matches(
+    tmp_path,
+) -> None:
+    path = tmp_path / "edgelist.csv"
+    path.write_text(
+        "user_anchor,user_match,similarity_score\n"
+        "anchor_a,match_1,0.88\n"
+        "anchor_a,match_2,0.12\n"
+        "other,x,0.99\n",
+        encoding="utf-8",
+    )
+    out = _future_alignment_via_chunks_streaming(
+        path,
+        "anchor_a",
+        frozenset({"match_1", "match_2"}),
+    )
+    assert out[("anchor_a", "match_1")] == 0.88
+    assert out[("anchor_a", "match_2")] == 0.12
+    assert ("other", "x") not in out
 
 
 def test_preprocess_features_matches_notebook_contract(datasets) -> None:

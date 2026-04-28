@@ -9,7 +9,11 @@ from sklearn.metrics.pairwise import cosine_similarity
 from dashboard.config import CONFIG, DashboardConfig
 from dashboard.models import compute_embeddings_for_model
 from dashboard.services.aliases import build_alias_catalog
-from dashboard.services.data import load_app_datasets, load_demo_datasets
+from dashboard.services.data import (
+    future_alignment_scores_for_pairs,
+    load_app_datasets,
+    load_demo_datasets,
+)
 from dashboard.services.scoring import build_user_group_scores, rank_pair_groups
 from dashboard.types import AliasCatalog, ModelArtifactSpec, ModelBundle, PairContext
 
@@ -142,9 +146,15 @@ def build_pair_context(
 
     selected_idx = datasets.model_matrix.index.get_loc(selected_user_id)
     ordered_indices = np.argsort(model_bundle.similarity_matrix[selected_idx])[::-1]
+    top_k_indices = ordered_indices[: config.ui.top_match_count]
+    alignment_by_pair = future_alignment_scores_for_pairs(
+        datasets,
+        selected_user_id,
+        tuple(str(datasets.model_matrix.index[i]) for i in top_k_indices),
+    )
 
     recommendations = []
-    for index in ordered_indices[: config.ui.top_match_count]:
+    for index in top_k_indices:
         match_user_id = datasets.model_matrix.index[index]
         recommendations.append(
             {
@@ -153,8 +163,8 @@ def build_pair_context(
                 "Predicted Similarity": float(
                     model_bundle.similarity_matrix[selected_idx, index]
                 ),
-                "Future Alignment": datasets.future_alignment_lookup.get(
-                    (selected_user_id, match_user_id)
+                "Future Alignment": alignment_by_pair.get(
+                    (str(selected_user_id), str(match_user_id))
                 ),
                 "Listener Profile": datasets.raw_features.loc[
                     match_user_id, "user_type_loyal"
@@ -165,8 +175,8 @@ def build_pair_context(
     top_matches = pd.DataFrame(recommendations)
     best_match = top_matches.iloc[0]
     match_user_id = str(best_match["user_id"])
-    future_alignment_score = datasets.future_alignment_lookup.get(
-        (selected_user_id, match_user_id)
+    future_alignment_score = alignment_by_pair.get(
+        (str(selected_user_id), str(match_user_id))
     )
 
     projection = model_bundle.projection.copy()

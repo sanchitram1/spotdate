@@ -23,9 +23,9 @@ class ModelArtifactSpec:
 class LoadedDatasets:
     raw_features: pd.DataFrame
     model_matrix: pd.DataFrame
-    full_edgelist: pd.DataFrame
-    future_alignment_lookup: dict[tuple[str, str], float]
     fingerprint: str
+    full_edgelist_path: Path
+    demo_future_alignment_lookup: dict[tuple[str, str], float] | None
 
 
 @dataclass(frozen=True)

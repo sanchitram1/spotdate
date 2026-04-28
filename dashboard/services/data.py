@@ -376,25 +376,109 @@ def _build_demo_edgelist(raw_features: pd.DataFrame) -> pd.DataFrame:
 
 
 def load_demo_datasets_uncached(config: DashboardConfig = CONFIG) -> LoadedDatasets:
-    del config
-
     raw_features = _build_demo_features()
     raw_features = raw_features.assign(user_id=raw_features["user_id"].astype(str))
     raw_features = raw_features.set_index("user_id", drop=False)
 
-    full_edgelist = _build_demo_edgelist(raw_features.reset_index(drop=True))
+    demo_edgelist = _build_demo_edgelist(raw_features.reset_index(drop=True))
     model_matrix = preprocess_features(raw_features.reset_index(drop=True))
-    future_alignment_lookup = full_edgelist.set_index(["user_anchor", "user_match"])[
-        "similarity_score"
-    ].to_dict()
+    demo_future_alignment_lookup = demo_edgelist.set_index(
+        ["user_anchor", "user_match"]
+    )["similarity_score"].to_dict()
 
     return LoadedDatasets(
         raw_features=raw_features,
         model_matrix=model_matrix,
-        full_edgelist=full_edgelist,
-        future_alignment_lookup=future_alignment_lookup,
         fingerprint="demo-datasets-v1",
+        full_edgelist_path=config.paths.full_edgelist_path,
+        demo_future_alignment_lookup=demo_future_alignment_lookup,
     )
+
+
+_EDGELIST_SCAN_CHUNKSIZE = 250_000
+
+
+def _peek_edgelist_columns(path: Path) -> tuple[str, set[str]]:
+    delim = detect_delimiter(path)
+    header = pd.read_csv(path, delimiter=delim, nrows=0)
+    return delim, set(header.columns)
+
+
+def _future_alignment_via_chunks_streaming(
+    path: Path,
+    anchor_user_id: str,
+    match_user_ids: frozenset[str],
+) -> dict[tuple[str, str], float]:
+    """Read edges for one anchor × a small candidate match set — O(file) scans, bounded RAM."""
+    delim, columns = _peek_edgelist_columns(path)
+    required_columns = {"user_anchor", "user_match", "similarity_score"}
+    if not required_columns.issubset(columns):
+        missing = sorted(required_columns.difference(columns))
+        raise KeyError(f"Missing required edgelist columns: {missing}")
+
+    anchor_s = str(anchor_user_id)
+    match_seen = frozenset(str(m) for m in match_user_ids)
+    out: dict[tuple[str, str], float] = {}
+
+    for chunk in pd.read_csv(
+        path,
+        delimiter=delim,
+        usecols=["user_anchor", "user_match", "similarity_score"],
+        dtype={
+            "user_anchor": str,
+            "user_match": str,
+            "similarity_score": float,
+        },
+        chunksize=_EDGELIST_SCAN_CHUNKSIZE,
+        low_memory=False,
+    ):
+        hit = chunk[chunk["user_anchor"].astype(str) == anchor_s]
+        hit = hit[hit["user_match"].astype(str).isin(match_seen)]
+        for row in hit.itertuples(index=False):
+            pair = (str(row.user_anchor), str(row.user_match))
+            out[pair] = float(row.similarity_score)
+        if match_seen <= {pair[1] for pair in out}:
+            break
+
+    return out
+
+
+@st.cache_data(show_spinner=False)
+def lookup_future_alignment_scores_cached(
+    dataset_fingerprint: str,
+    edgelist_path_str: str,
+    anchor_user_id: str,
+    sorted_match_ids: tuple[str, ...],
+) -> dict[tuple[str, str], float]:
+    """Stream-scan the saved edgelist; cache keyed by cohort fingerprint + anchors."""
+    match_set = frozenset(sorted_match_ids)
+    return _future_alignment_via_chunks_streaming(
+        Path(edgelist_path_str),
+        anchor_user_id=anchor_user_id,
+        match_user_ids=match_set,
+    )
+
+
+def future_alignment_scores_for_pairs(
+    datasets: LoadedDatasets,
+    anchor_user_id: str,
+    match_user_ids: tuple[str, ...],
+) -> dict[tuple[str, str], float | None]:
+    """Small lookup maps for `(anchor → match)` future-alignment scores (no full-graph RAM)."""
+    anchor_s = str(anchor_user_id)
+    mids = tuple(sorted({str(x) for x in match_user_ids}))
+    pairs = [(anchor_s, m) for m in mids]
+    if datasets.demo_future_alignment_lookup is not None:
+        lookup_demo = datasets.demo_future_alignment_lookup
+        return {pair: lookup_demo.get(pair) for pair in pairs}
+
+    found = lookup_future_alignment_scores_cached(
+        datasets.fingerprint,
+        str(datasets.full_edgelist_path),
+        anchor_s,
+        mids,
+    )
+    return {pair: found.get(pair) for pair in pairs}
 
 
 def load_app_datasets_uncached(config: DashboardConfig = CONFIG) -> LoadedDatasets:
@@ -404,27 +488,16 @@ def load_app_datasets_uncached(config: DashboardConfig = CONFIG) -> LoadedDatase
     raw_features = raw_features.assign(user_id=raw_features["user_id"].astype(str))
     raw_features = raw_features.set_index("user_id", drop=False)
 
-    full_edgelist = read_delimited_csv(
-        config.paths.full_edgelist_path,
-        dtype={"user_anchor": str, "user_match": str},
-    )
-
-    required_columns = {"user_anchor", "user_match", "similarity_score"}
-    if not required_columns.issubset(full_edgelist.columns):
-        missing = required_columns.difference(full_edgelist.columns)
-        raise KeyError(f"Missing required edgelist columns: {sorted(missing)}")
+    _peek_edgelist_columns(config.paths.full_edgelist_path)
 
     model_matrix = preprocess_features(raw_features.reset_index(drop=True))
-    future_alignment_lookup = full_edgelist.set_index(["user_anchor", "user_match"])[
-        "similarity_score"
-    ].to_dict()
 
     return LoadedDatasets(
         raw_features=raw_features,
         model_matrix=model_matrix,
-        full_edgelist=full_edgelist,
-        future_alignment_lookup=future_alignment_lookup,
         fingerprint=_fingerprint(config.paths),
+        full_edgelist_path=config.paths.full_edgelist_path,
+        demo_future_alignment_lookup=None,
     )
 
 

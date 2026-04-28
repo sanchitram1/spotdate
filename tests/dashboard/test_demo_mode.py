@@ -14,9 +14,8 @@ def test_demo_datasets_cover_expected_runtime_columns() -> None:
     assert not datasets.raw_features.empty
     assert "user_id" in datasets.raw_features.columns
     assert "user_type_loyal" in datasets.raw_features.columns
-    assert {"user_anchor", "user_match", "similarity_score"}.issubset(
-        datasets.full_edgelist.columns
-    )
+    assert datasets.demo_future_alignment_lookup
+    assert datasets.full_edgelist_path == CONFIG.paths.full_edgelist_path
 
 
 def test_demo_pair_context_builds_without_saved_artifacts() -> None:

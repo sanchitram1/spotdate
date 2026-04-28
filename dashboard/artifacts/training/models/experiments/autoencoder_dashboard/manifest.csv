@@ -1,0 +1,2 @@
+encoding_dim,depth,lr,patience,dropout_rate,batch_size,activation,val_mse,test_mse,hit_rate_at_k,precision_at_high_score,recall_at_top_5_percent,omission_count,avg_score,model_path
+48,1,0.005,20,0.1,32,relu,0.3115950524806976,0.2732796370983124,0.4987080103359173,0.4155038759689926,0.028423772609819,19.338501291989665,0.8342126860247646,experiments/autoencoder_dashboard/dashboard_best.keras
