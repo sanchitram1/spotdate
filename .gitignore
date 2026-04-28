@@ -116,3 +116,14 @@ fetched_data/
 *.keras
 manifest.csv
 *.pt
+
+# Minimal Streamlit bundle tracked for Streamlit Community Cloud deployments
+# (exceptions for global ignores: data/, *.keras, *.pt, manifest.csv)
+!/dashboard/
+!/dashboard/artifacts/
+!/dashboard/artifacts/data/
+!/dashboard/artifacts/data/**/*
+!/dashboard/artifacts/**/*.csv
+!/dashboard/artifacts/**/*.keras
+!/dashboard/artifacts/**/*.pt
+!/dashboard/artifacts/**/manifest.csv

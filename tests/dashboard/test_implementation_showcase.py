@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from pathlib import Path
+
+import pytest
+
 from dashboard.components.implementation_ideas import (
     _build_match_reveal_screens,
     _build_stats_screens,
@@ -31,6 +35,10 @@ def test_showcase_builds_three_phone_concepts(alias_catalog) -> None:
 
 
 def test_pair_history_snapshot_reads_real_listening_history(alias_catalog) -> None:
+    history_path = Path(CONFIG.paths.artifact_root) / "data" / "past_listening_history.csv"
+    if not history_path.is_file():
+        pytest.skip(f"{history_path}: not bundled (omit or use --with-listening-history in sync script)")
+
     selected_demo = alias_catalog.demo_users[0]
     context = build_pair_context(
         model_key="autoencoder",

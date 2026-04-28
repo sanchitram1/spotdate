@@ -1,0 +1,2 @@
+name,embedding_dim,depth,lr,dropout_rate,batch_size,margin,final_loss,model_path,hit_rate_at_k,precision_at_high_score,recall_at_top_5_percent,omission_count,avg_score
+siamese_model_emb64_dep3_lr0.001_drop0.1_batch128_margin0.5,64,3,0.001,0.1,128,0.5,0.5057356108593035,experiments/siamese_dashboard/dashboard_best.pt,0.4082687338501292,0.3922480620155036,0.0240283438557233,19.42377260981912,0.8226263866279249

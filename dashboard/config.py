@@ -91,23 +91,40 @@ class DashboardConfig:
         return {family.key: family.label for family in self.model_families}
 
 
-def build_config(repo_root: Path | None = None) -> DashboardConfig:
+def build_config(
+    repo_root: Path | None = None,
+    *,
+    prefer_dashboard_bundle: bool = True,
+) -> DashboardConfig:
     resolved_root = repo_root or Path(__file__).resolve().parents[1]
     fallback_artifact_root = resolved_root.parent / "spotify-app"
-    artifact_root = resolved_root
+    dashboard_bundle = resolved_root / "dashboard" / "artifacts"
 
+    artifact_root = resolved_root
     if (
+        prefer_dashboard_bundle
+        and (dashboard_bundle / "data" / "features_df.csv").is_file()
+    ):
+        artifact_root = dashboard_bundle
+    elif (
         not (resolved_root / "data" / "features_df.csv").exists()
         and fallback_artifact_root.exists()
     ):
         artifact_root = fallback_artifact_root
+
+    edgelists_dir = artifact_root / "data" / "edgelists"
+    dashboard_edgelist = edgelists_dir / "edgelist_dashboard_users.csv"
+    corpus_edgelist = edgelists_dir / "edgelist_full.csv"
+    resolved_edgelist_path = (
+        dashboard_edgelist if dashboard_edgelist.exists() else corpus_edgelist
+    )
 
     paths = PathsConfig(
         repo_root=resolved_root,
         artifact_root=artifact_root,
         dashboard_dir=resolved_root / "dashboard",
         features_path=artifact_root / "data" / "features_df.csv",
-        full_edgelist_path=artifact_root / "data" / "edgelists" / "edgelist_full.csv",
+        full_edgelist_path=resolved_edgelist_path,
         experiments_dir=artifact_root / "training" / "models" / "experiments",
         training_models_dir=artifact_root / "training" / "models",
     )
