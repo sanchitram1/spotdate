@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -91,12 +92,49 @@ class DashboardConfig:
         return {family.key: family.label for family in self.model_families}
 
 
+def resolve_repo_root(
+    *,
+    config_file: Path | None = None,
+    cwd: Path | None = None,
+) -> Path:
+    """Find the git checkout when ``dashboard`` is installed into site-packages.
+
+    On Streamlit Community Cloud the process cwd is the repo root, but
+    ``Path(__file__)`` may point under ``site-packages``, which would make
+    ``parents[1]`` *not* the repo and break ``dashboard/artifacts/`` resolution.
+    """
+    explicit = os.environ.get("SPOTDATE_REPO_ROOT")
+    if explicit:
+        return Path(explicit).expanduser().resolve()
+
+    anchor = (config_file or Path(__file__)).resolve()
+    work = (cwd or Path.cwd()).resolve()
+    derived_from_file = anchor.parents[1]
+
+    candidates: list[Path] = []
+    for p in (work, derived_from_file):
+        if p not in candidates:
+            candidates.append(p)
+
+    bundle = Path("dashboard") / "artifacts" / "data" / "features_df.csv"
+    app_entry = Path("dashboard") / "app.py"
+
+    for base in candidates:
+        if (base / bundle).is_file():
+            return base
+    for base in candidates:
+        if (base / app_entry).is_file():
+            return base
+
+    return derived_from_file
+
+
 def build_config(
     repo_root: Path | None = None,
     *,
     prefer_dashboard_bundle: bool = True,
 ) -> DashboardConfig:
-    resolved_root = repo_root or Path(__file__).resolve().parents[1]
+    resolved_root = repo_root or resolve_repo_root()
     fallback_artifact_root = resolved_root.parent / "spotify-app"
     dashboard_bundle = resolved_root / "dashboard" / "artifacts"
 
