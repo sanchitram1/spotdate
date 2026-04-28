@@ -12,6 +12,7 @@ Run from repo root:
 from __future__ import annotations
 
 import argparse
+import csv
 import shutil
 import sys
 from pathlib import Path
@@ -25,6 +26,100 @@ if str(REPO_ROOT) not in sys.path:
 from dashboard.config import build_config  # noqa: E402
 from dashboard.models.common import select_best_model_spec  # noqa: E402
 from dashboard.types import ModelArtifactSpec  # noqa: E402
+
+
+def _detect_delimiter(path: Path) -> str:
+    """Match ``dashboard.services.data.detect_delimiter`` without importing heavy deps.
+
+    Must read only the first line: ``past_listening_history.csv`` can be multi-gigabyte.
+    """
+    with path.open("r", encoding="utf-8", errors="replace") as handle:
+        line = handle.readline()
+    return ";" if line.count(";") > line.count(",") else ","
+
+
+# Columns required by `dashboard.components.implementation_ideas` listening scans.
+_LISTENING_TRIM_COLS = (
+    "user_id",
+    "track_name",
+    "artist_name",
+    "genre",
+    "duration_ms",
+)
+
+
+def _write_trimmed_listening_history(
+    repo_root: Path,
+    dest_features_path: Path,
+    dest_history_path: Path,
+) -> None:
+    """Subset of ``data/past_listening_history.csv`` for users present in bundled features only."""
+    source = repo_root / "data" / "past_listening_history.csv"
+    if not source.is_file():
+        print(
+            f"Skipping trimmed listening history: source not found ({source})",
+            file=sys.stderr,
+        )
+        return
+
+    feats_delim = _detect_delimiter(dest_features_path)
+    allowed = set(
+        pd.read_csv(
+            dest_features_path,
+            delimiter=feats_delim,
+            usecols=["user_id"],
+            dtype=str,
+        )["user_id"]
+        .astype(str)
+        .tolist()
+    )
+
+    delim = _detect_delimiter(source)
+
+    header = pd.read_csv(source, delimiter=delim, nrows=0)
+    missing = [c for c in _LISTENING_TRIM_COLS if c not in header.columns]
+    if missing:
+        raise KeyError(
+            f"{source} missing columns {missing}; cannot build dashboard listening subset"
+        )
+
+    dest_history_path.parent.mkdir(parents=True, exist_ok=True)
+    rows_out = 0
+    with source.open("r", encoding="utf-8", newline="") as raw_in:
+        reader = csv.DictReader(raw_in, delimiter=delim)
+        with dest_history_path.open("w", encoding="utf-8", newline="") as raw_out:
+            writer = csv.DictWriter(
+                raw_out,
+                fieldnames=list(_LISTENING_TRIM_COLS),
+                delimiter=delim,
+                extrasaction="ignore",
+            )
+            writer.writeheader()
+            for row in reader:
+                uid_raw = row.get("user_id")
+                if uid_raw is None:
+                    continue
+                if str(uid_raw).strip() not in allowed:
+                    continue
+                writer.writerow({c: row.get(c, "") for c in _LISTENING_TRIM_COLS})
+                rows_out += 1
+
+    if rows_out == 0:
+        print(
+            "Warning: trimmed listening history is empty "
+            "(no rows for dashboard user ids in features_df)",
+            file=sys.stderr,
+        )
+        return
+
+    try:
+        shown = dest_history_path.resolve().relative_to(repo_root.resolve())
+    except ValueError:
+        shown = dest_history_path.resolve()
+    print(
+        f"Trimmed listening history ({rows_out} rows) → {shown}",
+        file=sys.stderr,
+    )
 
 
 def _trimmed_manifest_row(
@@ -59,6 +154,13 @@ def sync_dashboard_artifacts(repo_root: Path, *, extra_listening_history: bool) 
     shutil.copy2(
         discovery.paths.full_edgelist_path,
         dest_root / "data" / "edgelists" / discovery.paths.full_edgelist_path.name,
+    )
+
+    feats_dest = dest_root / "data" / "features_df.csv"
+    _write_trimmed_listening_history(
+        repo_root,
+        feats_dest,
+        dest_root / "data" / "past_listening_history.csv",
     )
 
     if extra_listening_history:

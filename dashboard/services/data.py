@@ -13,8 +13,12 @@ from dashboard.types import ArtifactStatus, LoadedDatasets
 
 
 def detect_delimiter(path: Path) -> str:
-    """Choose between the repo's semicolon convention and the saved CSV artifact."""
-    header = path.read_text(encoding="utf-8").splitlines()[0]
+    """Choose between the repo's semicolon convention and the saved CSV artifact.
+
+    Reads only the first line — listening-history files can be very large on disk.
+    """
+    with path.open("r", encoding="utf-8", errors="replace") as handle:
+        header = handle.readline()
     return ";" if header.count(";") > header.count(",") else ","
 
 

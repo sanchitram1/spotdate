@@ -134,6 +134,47 @@ class QuirksIdea(ImplementationIdea):
                 )
             ]
 
+        green_keys = frozenset(item.key for item in green_flag_items)
+        selected_pairs = [
+            (text, item)
+            for text, item in zip(selected_quirks, selected_quirk_items, strict=True)
+            if item.key not in green_keys
+        ]
+        if selected_pairs:
+            selected_quirks = [text for text, _ in selected_pairs]
+            selected_quirk_items = [item for _, item in selected_pairs]
+        else:
+            selected_quirks, selected_quirk_items = [], []
+
+        if not selected_quirks:
+            selected_quirks = ["Pretty well-rounded listener"]
+            selected_quirk_items = [
+                QuirkDisplayItem(
+                    key="Mood",
+                    text="You gravitate away from moody ones",
+                )
+            ]
+
+        match_pairs = [
+            (text, item)
+            for text, item in zip(match_quirks, match_quirk_items, strict=True)
+            if item.key not in green_keys
+        ]
+        if match_pairs:
+            match_quirks = [text for text, _ in match_pairs]
+            match_quirk_items = [item for _, item in match_pairs]
+        else:
+            match_quirks, match_quirk_items = [], []
+
+        if not match_quirks:
+            match_quirks = ["Pretty well-rounded listener"]
+            match_quirk_items = [
+                QuirkDisplayItem(
+                    key="Mood",
+                    text="They gravitate away from moody ones",
+                )
+            ]
+
         return QuirksPayload(
             green_flags=green_flags,
             selected_quirks=selected_quirks,

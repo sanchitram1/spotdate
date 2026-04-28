@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import csv
-import os
+from pathlib import Path
 from dataclasses import dataclass
 
 import streamlit as st
 
 from dashboard.config import CONFIG, DashboardConfig
+from dashboard.services.data import detect_delimiter
+from dashboard.services.gcs_listening import resolve_listening_history_csv_path
 from dashboard.ideas.base import ImplementationIdea
 from dashboard.types import PairContext
 
@@ -32,11 +34,10 @@ class StatsPayload:
 
 @st.cache_data(ttl=3600)
 def compute_real_stats(user_id1: str, user_id2: str) -> dict:
-    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-    csv_path = os.path.join(project_root, "data", "past_listening_history.csv")
-
-    if not os.path.exists(csv_path):
+    csv_path_o = resolve_listening_history_csv_path(CONFIG.paths)
+    if csv_path_o is None or not csv_path_o.is_file():
         return {}
+    csv_path = str(csv_path_o)
 
     p1_artists = {}
     p2_artists = {}
@@ -46,8 +47,9 @@ def compute_real_stats(user_id1: str, user_id2: str) -> dict:
     duration2 = 0
 
     # Using streaming CSV reader instead of pd.read_csv to process the large file efficiently in O(1) memory
+    delim = detect_delimiter(Path(csv_path))
     with open(csv_path, "r", encoding="utf-8") as f:
-        reader = csv.DictReader(f, delimiter=";")
+        reader = csv.DictReader(f, delimiter=delim)
         for row in reader:
             uid = row.get("user_id")
             if uid == user_id1:

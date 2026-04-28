@@ -474,7 +474,7 @@ def main() -> None:
     inject_styles()
 
     model_key, selected_user_id, demo_mode = render_sidebar()
-    render_runtime_banner(demo_mode)
+    # render_runtime_banner(demo_mode)  # Hidden: runtime status strip (demo vs artifacts)
 
     spinner_message = (
         "Building match story from built-in demo data..."

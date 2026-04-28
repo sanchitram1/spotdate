@@ -6,6 +6,7 @@ import math
 import re
 from dataclasses import dataclass
 from functools import lru_cache
+from typing import Sequence
 from html import escape
 from pathlib import Path
 
@@ -15,10 +16,13 @@ import streamlit as st
 from dashboard.components.screen import Screen, render_phone_screens
 from dashboard.config import CONFIG, DashboardConfig
 from dashboard.ideas.match_dna import MatchDNAIdea
+from dashboard.services.data import detect_delimiter
+from dashboard.services.gcs_listening import resolve_listening_history_csv_path
 from dashboard.ideas.new_radar import NewRadarIdea
 from dashboard.ideas.opposites import OppositesIdea
 from dashboard.ideas.quirks import QuirkDisplayItem, QuirksIdea
 from dashboard.types import PairContext
+from utils.logger import get_logger
 
 # Legacy imports preserved for reference during the dashboard redesign.
 # from dashboard.ideas.registry import get_implementation_ideas
@@ -63,6 +67,7 @@ class ConceptCardSpec:
 
 
 MATCH_SCREENS: tuple[str, ...] = ("top_tracks", "genre", "stats", "attributes")
+_LOG = get_logger(__name__)
 SHOWCASE_MATCH_NAMES: tuple[str, ...] = (
     "Grusha",
     "Roxana",
@@ -157,6 +162,27 @@ def _pick_non_colliding_fallback_key(taken_display: str) -> str:
         if display.lower() != taken_lower:
             return raw_key
     return QUIRK_FALLBACK_KEY_ORDER[0]
+
+
+def _common_chords_heading(raw_semantic_key: str) -> str:
+    stripped = raw_semantic_key.strip()
+    return DISPLAY_LABEL_MAP.get(stripped, stripped)
+
+
+def _first_selected_quirk_not_duplicate_display(
+    top_flag: QuirkDisplayItem | None,
+    quirk_candidates: Sequence[QuirkDisplayItem],
+) -> QuirkDisplayItem | None:
+    """Prefer a \"quirk\" whose visible heading differs from the green-flag heading."""
+    if not quirk_candidates:
+        return None
+    if top_flag is None:
+        return quirk_candidates[0]
+    top_h = _common_chords_heading(top_flag.key).lower()
+    for cand in quirk_candidates:
+        if _common_chords_heading(cand.key).lower() != top_h:
+            return cand
+    return None
 
 
 def _resolve_quirk_display(
@@ -655,7 +681,7 @@ def _scan_listening_history_csv(
     selected_total = 0
     match_total = 0
     with path.open("r", encoding="utf-8") as handle:
-        reader = csv.DictReader(handle, delimiter=";")
+        reader = csv.DictReader(handle, delimiter=detect_delimiter(path))
         for row in reader:
             ds, dm, s_min, m_min = _ingest_past_listening_row(
                 row,
@@ -718,10 +744,11 @@ def _scan_listening_history_pandas(
     match_minutes = 0
     selected_total = 0
     match_total = 0
+    delim = detect_delimiter(path)
     try:
         for chunk in pd.read_csv(
             path,
-            sep=";",
+            sep=delim,
             usecols=list(usecols),
             dtype=str,
             chunksize=chunksize,
@@ -751,7 +778,10 @@ def _scan_listening_history_pandas(
                 selected_minutes += s_min
                 match_minutes += m_min
     except Exception:
-        # Bad dtypes, parse errors, or missing usecols: fall back to csv.DictReader.
+        _LOG.exception(
+            "past_listening_history pandas scan failed; falling back to DictReader (%s)",
+            path,
+        )
         return None
     return (
         selected_tracks,
@@ -845,8 +875,15 @@ def _compute_pair_history_snapshot(
     match_user_id: str,
     artifact_root: str,
 ) -> PairHistorySnapshot | None:
-    history_path = Path(artifact_root) / "data" / "past_listening_history.csv"
-    if not history_path.exists():
+    del (
+        artifact_root
+    )  # Resolved via bundle / repo / GCS; kept in signature for cache key stability.
+    history_path = resolve_listening_history_csv_path(CONFIG.paths)
+    if history_path is None:
+        _LOG.warning(
+            "pair_history snapshot unavailable: no listening history (GCS, bundle, or data/) "
+            "(match story screens use placeholders)",
+        )
         return None
 
     # Prefer chunked pandas (narrow columns); fall back to streaming csv.DictReader.
@@ -867,6 +904,15 @@ def _compute_pair_history_snapshot(
         match_total,
     ) = agg
     if selected_total == 0 or match_total == 0:
+        _LOG.warning(
+            "pair_history snapshot empty for pair %s → %s in %s "
+            "(selected_total=%s match_total=%s)",
+            selected_user_id,
+            match_user_id,
+            history_path,
+            selected_total,
+            match_total,
+        )
         return None
     return _build_pair_history_snapshot_from_aggregates(*agg)
 
@@ -1409,10 +1455,9 @@ def _build_match_story_attributes_visual(
     top_flag = (
         quirks_payload.green_flag_items[0] if quirks_payload.green_flag_items else None
     )
-    selected_quirk = (
-        quirks_payload.selected_quirk_items[0]
-        if quirks_payload.selected_quirk_items
-        else None
+    selected_quirk = _first_selected_quirk_not_duplicate_display(
+        top_flag,
+        quirks_payload.selected_quirk_items,
     )
 
     # Defaults match the hardcoded fallbacks in QuirksIdea.build; a real item
@@ -1430,6 +1475,11 @@ def _build_match_story_attributes_visual(
             quirk_raw_key = _pick_non_colliding_fallback_key(flag_display)
         elif top_flag is None:
             flag_raw_key = _pick_non_colliding_fallback_key(quirk_display)
+        else:
+            # Both sides had real items but the same visible heading (e.g. duplicate
+            # group rows): prefer synthetic quirk messaging from another axis.
+            selected_quirk = None
+            quirk_raw_key = _pick_non_colliding_fallback_key(flag_display)
 
     flag_key, flag_text = _resolve_quirk_display(
         top_flag,
@@ -1447,6 +1497,13 @@ def _build_match_story_attributes_visual(
     flag_text = _short_text(flag_text)
     quirk_key = _short_text(quirk_key)
     quirk_text = _short_text(quirk_text)
+    _LOG.info(
+        "match_story screen=attributes green_flag_items=%s selected_quirk_items=%s "
+        "using_fallback_keys=%s",
+        len(quirks_payload.green_flag_items),
+        len(quirks_payload.selected_quirk_items),
+        top_flag is None or selected_quirk is None,
+    )
     return f"""
     <div class="match-story-block">
         <div class="match-story-anchor">Tastes like yours can't be defined.</div>
@@ -1473,6 +1530,30 @@ def _build_match_story_screens(
         selected_user_id=context.selected_user_id,
         match_user_id=context.match_user_id,
         artifact_root=str(CONFIG.paths.artifact_root),
+    )
+    history_path = resolve_listening_history_csv_path(CONFIG.paths)
+    _LOG.info(
+        "match_story screens base: history_path=%s snapshot_present=%s",
+        history_path,
+        snapshot is not None,
+    )
+    _LOG.info(
+        "match_story screen=top_tracks placeholder_track=%s shared_track=%r artist=%r",
+        snapshot is None or not snapshot.shared_track_name,
+        snapshot.shared_track_name if snapshot else None,
+        snapshot.shared_track_artist if snapshot else None,
+    )
+    _LOG.info(
+        "match_story screen=genre placeholder_genres=%s top_shared=%r",
+        snapshot is None or not snapshot.shared_genres_top3,
+        snapshot.shared_genres_top3[0].name
+        if snapshot and snapshot.shared_genres_top3
+        else None,
+    )
+    _LOG.info(
+        "match_story screen=stats placeholder_minutes=%s match_minutes=%s",
+        snapshot is None or snapshot.match_minutes <= 0,
+        snapshot.match_minutes if snapshot else None,
     )
     return [
         Screen(

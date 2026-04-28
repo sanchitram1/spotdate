@@ -102,6 +102,7 @@ Thumbs.db
 # Environment / secrets
 *.env
 *.env.*
+.streamlit/secrets.toml
 .envrc
 .env.local
 .env.development.local
@@ -127,3 +128,7 @@ manifest.csv
 !/dashboard/artifacts/**/*.keras
 !/dashboard/artifacts/**/*.pt
 !/dashboard/artifacts/**/manifest.csv
+
+# Large listening export (~hundreds of MB+): kept in GCS, not git (overrides CSV un-ignore above)
+dashboard/artifacts/data/past_listening_history.csv
+streamlit-gcs-read.json
