@@ -5,10 +5,13 @@ from dataclasses import dataclass
 from functools import lru_cache
 from html import escape
 import mimetypes
-from pathlib import Path
 import re
 
 import streamlit.components.v1 as components
+
+from dashboard.config import CONFIG
+
+_IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp"}
 
 
 @dataclass(frozen=True)
@@ -1534,12 +1537,12 @@ def _build_compact_phone_overrides() -> str:
 
 @lru_cache(maxsize=1)
 def _load_mobile_component_css() -> str:
-    style_path = Path(__file__).resolve().parents[2] / "mobile-demo" / "style.css"
+    style_path = CONFIG.paths.repo_root / "mobile-demo" / "style.css"
     return style_path.read_text(encoding="utf-8")
 
 
 def _load_dashboard_component_css() -> str:
-    style_path = Path(__file__).resolve().parents[1] / "styles.css"
+    style_path = CONFIG.paths.dashboard_dir / "styles.css"
     if not style_path.exists():
         return ""
     return style_path.read_text(encoding="utf-8")
@@ -1557,16 +1560,23 @@ def _build_match_image_markup(match_alias: str) -> str:
 
 @lru_cache(maxsize=32)
 def _resolve_match_image_data_uri(match_alias: str) -> str:
-    assets_dir = Path(__file__).resolve().parents[1] / "assets" / "matches"
-    alias_slug = _slugify(match_alias)
-    candidates = [
-        assets_dir / f"{alias_slug}.jpg",
-        assets_dir / f"{alias_slug}.jpeg",
-        assets_dir / f"{alias_slug}.png",
-        assets_dir / f"{alias_slug}.webp",
-    ]
-    for candidate in candidates:
-        if not candidate.exists():
+    """Resolve profile images under ``dashboard/assets/matches``.
+
+    Filenames in git may use ``.JPG``; Linux deploys are case-sensitive. When
+    ``dashboard`` is installed, ``__file__`` may point at site-packages, so use
+    ``CONFIG.paths.dashboard_dir`` (same root resolution as the rest of the app).
+    """
+    assets_dir = CONFIG.paths.dashboard_dir / "assets" / "matches"
+    if not assets_dir.is_dir():
+        return ""
+
+    target = _slugify(match_alias)
+    for candidate in sorted(assets_dir.iterdir()):
+        if not candidate.is_file():
+            continue
+        if candidate.suffix.lower() not in _IMAGE_SUFFIXES:
+            continue
+        if _slugify(candidate.stem) != target:
             continue
         mime_type, _ = mimetypes.guess_type(candidate.name)
         if not mime_type:
